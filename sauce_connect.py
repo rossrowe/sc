@@ -34,7 +34,10 @@ from functools import wraps
 try:
     import json
 except ImportError:
-    import simplejson as json  # Python 2.5 dependency
+    try:
+        import simplejson as json  # Python 2.5 dependency
+    except ImportError:
+        import com.xhaus.jyson.JysonCodec as json
 
 NAME = "sauce_connect"
 RELEASE = 23
@@ -190,7 +193,8 @@ class TunnelMachine(object):
         # Request a tunnel machine
         headers = {"Content-Type": "application/json"}
         data = json.dumps(dict(DomainNames=list(self.domains),
-                               Metadata=self.metadata))
+                               Metadata=self.metadata,
+                               SSHPort=443))
         req = urllib2.Request(url=self.base_url, headers=headers, data=data)
         doc = self._get_doc(req)
         if doc.get('error'):
@@ -233,7 +237,7 @@ class TunnelMachine(object):
 
         try:
             doc = self._get_doc(DeleteRequest(url=self.url))
-        except TunnelMachineError as e:
+        except TunnelMachineError, e:
             logger.warning("Unable to shut down tunnel host")
             logger.debug("Shut down failed because: %s", str(e))
             self.is_shutdown = True  # fuhgeddaboudit
@@ -392,7 +396,7 @@ class ReverseSSH(object):
         config_file = "" if self.use_ssh_config else "-F /dev/null"
         host_ip = socket.gethostbyname(self.tunnel.host)
         script = (
-            "spawn ssh %s %s -p 22 -l %s -o ServerAliveInterval=%s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -N %s %s;"
+            "spawn ssh %s %s -p 443 -l %s -o ServerAliveInterval=%s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -N %s %s;"
                 % (verbosity, config_file, self.tunnel.user,
                    HEALTH_CHECK_INTERVAL, self._dash_Rs, self.tunnel.host) +
             "expect *password:;send -- %s\\r;" % self.tunnel.password +
@@ -411,8 +415,10 @@ class ReverseSSH(object):
         if self.debug:
             self.stdout_f = tempfile.TemporaryFile()
         else:
-            self.stdout_f = open(os.devnull)
+            self.stdout_f = open(os.devnull, 'wb')
         self.stderr_f = tempfile.TemporaryFile()
+        print self.stdout_f
+        print self.stderr_f
         self.proc = subprocess.Popen(
             cmd, shell=True, stdout=self.stdout_f, stderr=self.stderr_f)
         self.tunnel.reverse_ssh = self  # BUG: circular ref
@@ -423,9 +429,9 @@ class ReverseSSH(object):
 
         # setup recurring healthchecks
         forwarded_health = HealthChecker(self.host, self.ports)
-        tunnel_health = HealthChecker(host=self.tunnel.host, ports=[22],
+        tunnel_health = HealthChecker(host=self.tunnel.host, ports=[443],
             fail_msg="!! Your tests may fail because your network can not get "
-                     "to the tunnel host (%s:%d)." % (self.tunnel.host, 22))
+                     "to the tunnel host (%s:%d)." % (self.tunnel.host, 443))
 
         start_time = int(time.time())
         while self.proc.poll() is None:
@@ -648,7 +654,7 @@ def check_domains(domains):
             raise SystemExit(1)
 
 
-def get_options():
+def get_options(arglist=sys.argv[1:]):
     usage = """
 Usage: %(name)s -u <user> -k <api_key> -s <webserver> -d <domain> [options]
 
@@ -718,7 +724,7 @@ Performance tip:
                   help="Threshold for logging latency (ms) [%default]")
     op.add_option_group(og)
 
-    (options, args) = op.parse_args()
+    (options, args) = op.parse_args(arglist)
 
     # default to 80 and default to matching host ports with tunnel ports
     if not options.ports and not options.tunnel_ports:
@@ -813,7 +819,7 @@ def _get_loggable_options(options):
     return ops
 
 
-def run(options, dependency_versions=None):
+def run(options, dependency_versions=None, enable_signal_handlers=True, reverse_ssh=ReverseSSH):
     if not options.quiet:
         print ".---------------------------------------------------."
         print "|  Have questions or need help with Sauce Connect?  |"
@@ -856,7 +862,8 @@ def run(options, dependency_versions=None):
         except TunnelMachineError, e:
             logger.error(e)
             peace_out(returncode=1)  # exits
-        setup_signal_handler(tunnel, options)
+        if enable_signal_handlers:
+            etup_signal_handler(tunnel, options)
         atexit.register(peace_out, tunnel, atexit=True)
         try:
             tunnel.ready_wait()
@@ -870,7 +877,7 @@ def run(options, dependency_versions=None):
             logger.info("** Please contact help@saucelabs.com")
             peace_out(tunnel, returncode=1)  # exits
 
-    ssh = ReverseSSH(tunnel=tunnel, host=options.host,
+    ssh = reverse_ssh(tunnel=tunnel, host=options.host,
                      ports=options.ports, tunnel_ports=options.tunnel_ports,
                      use_ssh_config=options.use_ssh_config,
                      debug=options.debug_ssh)

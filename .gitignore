@@ -3,3 +3,6 @@
 *.zip
 cache
 Output
+dist
+sauce_connect.log
+bin
