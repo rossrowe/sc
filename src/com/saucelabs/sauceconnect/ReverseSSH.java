@@ -13,9 +13,9 @@ public class ReverseSSH {
 	public String[] tunnel_ports;
 	public boolean use_ssh_config;
 	public boolean debug;
-	
-	public void run(String readyfile){
-		System.err.println("Starting SSH process...");
+
+	public void run(String readyfile) throws InterruptedException{
+		SauceConnect.log("Starting SSH connection...");
 		String host = ((PyString)tunnel.__getattr__("host")).asString();
 		String user = ((PyString)tunnel.__getattr__("user")).asString();
 		String password = ((PyString)tunnel.__getattr__("password")).asString();
@@ -28,21 +28,16 @@ public class ReverseSSH {
 				int remotePort = Integer.valueOf(tunnel_ports[index]);
 				int localPort = Integer.valueOf(ports[index]);
 				makiConnection.requestRemotePortForwarding("0.0.0.0", remotePort, this.host, localPort);
-				System.err.println("Forwarded " + remotePort + " to " + this.host + ":" + localPort);
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
-		System.err.println("Connected!");
-		try {
-			Thread.sleep(5*60000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		SauceConnect.log("SSH Connected. You may start your tests.");
+		for(;;){
+			Thread.sleep(60000);
 		}
 	}
+
+	public void stop(){ }
 }

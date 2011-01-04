@@ -39,6 +39,11 @@ except ImportError:
     except ImportError:
         import com.xhaus.jyson.JysonCodec as json
 
+try:
+    from java.lang import InterruptedException
+except ImportError:
+    class InterruptedException(Exception): pass
+
 NAME = "sauce_connect"
 RELEASE = 23
 DISPLAY_VERSION = "%s release %s" % (NAME, RELEASE)
@@ -60,6 +65,7 @@ SIGNALS_RECV_MAX = 4  # used with --allow-unclean-exit
 is_windows = platform.system().lower() == "windows"
 is_openbsd = platform.system().lower() == "openbsd"
 logger = logging.getLogger(NAME)
+fileout = None
 
 
 class DeleteRequest(urllib2.Request):
@@ -594,6 +600,7 @@ def check_version():
 
 
 def setup_logging(logfile=None, quiet=False):
+    global fileout
     logger.setLevel(logging.DEBUG)
 
     if not quiet:
@@ -819,7 +826,7 @@ def _get_loggable_options(options):
     return ops
 
 
-def run(options, dependency_versions=None, enable_signal_handlers=True, reverse_ssh=ReverseSSH):
+def run(options, dependency_versions=None, setup_signal_handler=setup_signal_handler, reverse_ssh=ReverseSSH):
     if not options.quiet:
         print ".---------------------------------------------------."
         print "|  Have questions or need help with Sauce Connect?  |"
@@ -862,8 +869,7 @@ def run(options, dependency_versions=None, enable_signal_handlers=True, reverse_
         except TunnelMachineError, e:
             logger.error(e)
             peace_out(returncode=1)  # exits
-        if enable_signal_handlers:
-            etup_signal_handler(tunnel, options)
+        setup_signal_handler(tunnel, options)
         atexit.register(peace_out, tunnel, atexit=True)
         try:
             tunnel.ready_wait()
@@ -885,6 +891,8 @@ def run(options, dependency_versions=None, enable_signal_handlers=True, reverse_
         ssh.run(options.readyfile)
     except (ReverseSSHError, TunnelMachineError), e:
         logger.error(e)
+    except InterruptedException, e:
+        return
     peace_out(tunnel)  # exits
 
 
