@@ -46,6 +46,8 @@ public class SauceConnect {
         args.add(new PyString(domain));
         args.add(new PyString("-s"));
         args.add(new PyString("127.0.0.1"));
+        args.add(new PyString("--ssh-port"));
+        args.add(new PyString("443"));
         if (rest_url != null) {
             args.add(new PyString("--rest-url"));
             args.add(new PyString(rest_url));
