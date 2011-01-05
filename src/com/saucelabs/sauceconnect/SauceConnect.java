@@ -13,8 +13,12 @@ public class SauceConnect {
 
 	private static CommandLine parseArgs(String[] args) throws ParseException{
 		Options options = new Options();
-		options.addOption("u", "username", true, "Sauce OnDemand account name");
-		options.addOption("k", "api-key", true, "Sauce OnDemand API key");
+		Option username = new Option("u", "username", true, "Sauce OnDemand account name");
+		username.setRequired(true);
+		options.addOption(username);
+		Option apikey = new Option("k", "api-key", true, "Sauce OnDemand API key");
+		apikey.setRequired(true);
+		options.addOption(apikey);
 		options.addOption("r", "rest-url", true, null);
 		CommandLineParser parser = new PosixParser();
 		return parser.parse(options, args);
@@ -41,15 +45,13 @@ public class SauceConnect {
 	}
 	
 	public static void main(String[] args) {
-		interpreter = new PythonInterpreter();
-		interpreter.exec("import sauce_connect");
 		CommandLine parsedArgs = null;
-		String domain = String.valueOf(new Random().nextInt(10000)) + "foo.proxy.saucelabs.com";
+		String domain = String.valueOf(new Random().nextInt(10000)) + ".proxy.saucelabs.com";
 		
 		try {
 			parsedArgs = parseArgs(args);
 		} catch (ParseException e1) {
-			System.err.println("Invalid command line: " + e1.getMessage());
+			System.err.println(e1.getMessage());
 			return;
 		}
 		
@@ -60,6 +62,8 @@ public class SauceConnect {
 			log("Error starting proxy: "+e.getMessage());
 		}
 		
+		interpreter = new PythonInterpreter();
+		interpreter.exec("import sauce_connect");
 		interpreter.set("arglist", generateArgsForSauceConnect(parsedArgs.getOptionValue('u'),
 				parsedArgs.getOptionValue('k'),
 				domain,

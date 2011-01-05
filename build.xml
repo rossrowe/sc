@@ -30,14 +30,18 @@
         classpath="lib/jarjar-1.0.jar"/>
     <jarjar jarfile="${dist}/Sauce_Connect.jar" basedir="${build}">
         <fileset dir="${build}"/>
-        <fileset dir="." includes="sslSupport/*"/>
+        <fileset dir="." includes="sslSupport/*,sauce_connect.py"/>
         <zipfileset src="lib/bcprov-jdk15-135.jar" excludes="META-INF/BCKEY.*"/>
         <zipfileset src="lib/commons-logging-1.1.1.jar"/>
+        <zipfileset src="lib/commons-cli-1.2.jar"/>
         <zipfileset src="lib/javax.servlet.jar"/>
         <zipfileset src="lib/org.mortbay.jetty.jar"/>
         <zipfileset src="lib/org.mortbay.jmx.jar"/>
+        <zipfileset src="lib/jyson-1.0.1.jar"/>
+        <zipfileset src="lib/jython.jar"/>
+        <zipfileset src="lib/ganymed-ssh2-build251beta1.jar"/>
         <manifest>
-            <attribute name="Main-Class" value="com.saucelabs.sauceconnect.SauceProxy"/>
+            <attribute name="Main-Class" value="com.saucelabs.sauceconnect.SauceConnect"/>
         </manifest>
     </jarjar>
    </target>
