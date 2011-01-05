@@ -4,7 +4,7 @@ import org.python.core.*;
 import org.python.util.PythonInterpreter;
 
 public class SauceConnect {
-	private static PythonInterpreter interpreter;
+	public static PythonInterpreter interpreter;
 
 	/**
 	 * @param args
