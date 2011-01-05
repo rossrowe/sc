@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package com.saucelabs.sauceconnect;
+package com.saucelabs.sauceconnect.proxy;
 
 import java.io.IOException;
 import java.io.InputStream;

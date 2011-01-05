@@ -307,6 +307,7 @@ class HealthChecker(object):
 
     def check(self):
         now = time.time()
+        all_good = True
         for port in self.ports:
             ping_time = self._tcp_ping(port)
             if ping_time is not None:
@@ -336,12 +337,14 @@ class HealthChecker(object):
                 continue
 
             # TCP connection failed
+            all_good = False
             self.last_tcp_ping[port] = ping_time
             logger.warning(self.fail_msg % dict(host=self.host, port=port))
             if now - self.last_tcp_connect[port] > HEALTH_CHECK_FAIL:
                 raise HealthCheckFail(
                     "Could not connect to %s:%s for over %s seconds"
                     % (self.host, port, HEALTH_CHECK_FAIL))
+        return all_good
 
 
 class ReverseSSHError(Exception):

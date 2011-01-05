@@ -4,6 +4,8 @@ import org.mortbay.http.HttpContext;
 import org.mortbay.http.SocketListener;
 import org.mortbay.jetty.Server;
 
+import com.saucelabs.sauceconnect.proxy.ProxyHandler;
+
 public class SauceProxy {
     private Server server;
 
@@ -19,7 +21,6 @@ public class SauceProxy {
         root = new HttpContext();
         root.setContextPath("/");
         ProxyHandler proxyHandler = new ProxyHandler(true, "", "", false, false);
-
         root.addHandler(proxyHandler);
         server.addContext(root);
     }
@@ -32,5 +33,4 @@ public class SauceProxy {
         SauceProxy proxy = new SauceProxy();
         proxy.start();
     }
-
 }

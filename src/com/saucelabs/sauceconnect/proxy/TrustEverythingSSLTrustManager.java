@@ -1,4 +1,4 @@
-package com.saucelabs.sauceconnect;
+package com.saucelabs.sauceconnect.proxy;
 
 import java.security.GeneralSecurityException;
 

@@ -14,7 +14,7 @@
 // limitations under the License.
 // ========================================================================
 
-package com.saucelabs.sauceconnect;
+package com.saucelabs.sauceconnect.proxy;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLHandshakeException;

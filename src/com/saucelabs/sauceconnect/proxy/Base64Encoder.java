@@ -10,7 +10,7 @@
  * Created on 06. August 2004 by Joe Walnes
  */
 // original package name: com.thoughtworks.xstream.core.util
-package com.saucelabs.sauceconnect;
+package com.saucelabs.sauceconnect.proxy;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

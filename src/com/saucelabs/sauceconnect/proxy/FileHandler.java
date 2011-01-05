@@ -17,7 +17,7 @@ limitations under the License.
 
 // Copyright 2008 Google Inc.  All Rights Reserved.
 
-package com.saucelabs.sauceconnect;
+package com.saucelabs.sauceconnect.proxy;
 
 import java.io.BufferedReader;
 import java.io.File;

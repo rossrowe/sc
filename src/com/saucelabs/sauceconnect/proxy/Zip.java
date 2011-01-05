@@ -1,4 +1,4 @@
-package com.saucelabs.sauceconnect;
+package com.saucelabs.sauceconnect.proxy;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;

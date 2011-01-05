@@ -9,7 +9,16 @@ import org.python.core.*;
 import org.python.util.PythonInterpreter;
 
 public class SauceConnect {
-    public static PythonInterpreter interpreter;
+    private static PythonInterpreter interpreter = null;
+    private static SauceProxy proxy = null;
+    
+    public static PythonInterpreter getInterpreter(){
+        if(interpreter == null){
+            interpreter = new PythonInterpreter();
+            interpreter.exec("import sauce_connect");
+        }
+        return interpreter;
+    }
 
     private static CommandLine parseArgs(String[] args) throws ParseException {
         Options options = new Options();
@@ -53,18 +62,18 @@ public class SauceConnect {
             parsedArgs = parseArgs(args);
         } catch (ParseException e1) {
             System.err.println(e1.getMessage());
-            return;
+            System.exit(1);
         }
 
-        SauceProxy proxy = new SauceProxy();
         try {
+            proxy = new SauceProxy();
             proxy.start();
         } catch (Exception e) {
-            log("Error starting proxy: " + e.getMessage());
+            System.err.println("Error starting proxy: " + e.getMessage());
+            System.exit(2);
         }
 
-        interpreter = new PythonInterpreter();
-        interpreter.exec("import sauce_connect");
+        getInterpreter();
         interpreter.set(
                 "arglist",
                 generateArgsForSauceConnect(parsedArgs.getOptionValue('u'),
@@ -80,15 +89,10 @@ public class SauceConnect {
         final Thread mainThread = Thread.currentThread();
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
-                try {
-                    interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)");
-                    mainThread.interrupt();
-                    interpreter
-                            .exec("sauce_connect.peace_out(tunnel_for_java_to_kill, atexit=True)");
-                } catch (Exception e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
+                interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)");
+                mainThread.interrupt();
+                interpreter
+                        .exec("sauce_connect.peace_out(tunnel_for_java_to_kill, atexit=True)");
             }
         });
 
@@ -97,11 +101,11 @@ public class SauceConnect {
                     + "setup_signal_handler=setup_java_signal_handler,"
                     + "reverse_ssh=JavaReverseSSH)");
         } catch (Exception e) {
-            // swallow silently
+            System.exit(3);
         }
     }
 
-    public static void log(String line) {
-        interpreter.exec("sauce_connect.logger.info('" + line + "')");
+    public static int getHealthCheckInterval() {
+        return ((PyInteger) interpreter.eval("sauce_connect.HEALTH_CHECK_INTERVAL")).asInt() * 1000;
     }
 }

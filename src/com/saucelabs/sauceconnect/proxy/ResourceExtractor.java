@@ -2,7 +2,7 @@
  * Created on Oct 17, 2006
  *
  */
-package com.saucelabs.sauceconnect;
+package com.saucelabs.sauceconnect.proxy;
 
 import java.io.File;
 import java.io.FileOutputStream;

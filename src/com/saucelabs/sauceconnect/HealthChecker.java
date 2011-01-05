@@ -4,34 +4,31 @@ import org.python.core.*;
 
 public class HealthChecker {
     private PyObject pyHealthChecker;
+    
+    private PyType getHealthCheckerClass(){
+        return (PyType) SauceConnect.getInterpreter().eval("sauce_connect.HealthChecker");
+    }
+    
+    private PyList stringArrayToPyList(String[] strings){
+        PyString[] pythonStrings = new PyString[strings.length];
+        for (int index = 0; index < strings.length; index++) {
+            pythonStrings[index] = new PyString(strings[index]);
+        }
+        return new PyList(pythonStrings);
+    }
 
     public HealthChecker(String host, String[] ports) {
-        PyType healthCheckerClass = (PyType) SauceConnect.interpreter
-                .eval("sauce_connect.HealthChecker");
-        PyString[] pythonArgs = new PyString[ports.length];
-        for (int index = 0; index < ports.length; index++) {
-            pythonArgs[index] = new PyString(ports[index]);
-        }
-        this.pyHealthChecker = healthCheckerClass.__call__(new PyString(host), new PyList(
-                pythonArgs));
+        this.pyHealthChecker = getHealthCheckerClass().__call__(new PyString(host),
+                stringArrayToPyList(ports));
     }
 
     public HealthChecker(String host, String[] ports, String failMsg) {
-        PyType healthCheckerClass = (PyType) SauceConnect.interpreter
-                .eval("sauce_connect.HealthChecker");
-        PyString[] pythonArgs = new PyString[ports.length];
-        for (int index = 0; index < ports.length; index++) {
-            pythonArgs[index] = new PyString(ports[index]);
-        }
-        this.pyHealthChecker = healthCheckerClass.__call__(new PyString(host), new PyList(
-                pythonArgs), new PyString(failMsg));
+        this.pyHealthChecker = getHealthCheckerClass().__call__(new PyString(host),
+                stringArrayToPyList(ports), new PyString(failMsg));
     }
 
-    public void check() {
-        try {
-            this.pyHealthChecker.invoke("check");
-        } catch (PyException e) {
-            e.printStackTrace();
-        }
+    public boolean check() {
+        PyObject result = this.pyHealthChecker.invoke("check");
+        return ((PyBoolean)result).getValue() == 1;
     }
 }
