@@ -19,36 +19,43 @@ public class ReverseSSH {
     public String[] tunnel_ports;
     public boolean use_ssh_config;
     public boolean debug;
-    
+    public int ssh_port;
+
     private Connection tunnelConnection;
     private File readyfile = null;
-    
-    private String getTunnelSetting(String name){
+
+    private String getTunnelSetting(String name) {
         return ((PyString) this.tunnel.__getattr__(name)).asString();
     }
 
     public void run(String readyfile) throws InterruptedException, IOException {
-        this.readyfile = new File(readyfile);
-        this.readyfile.delete();
-        this.readyfile.deleteOnExit();
+        if (readyfile != null) {
+            this.readyfile = new File(readyfile);
+            this.readyfile.delete();
+            this.readyfile.deleteOnExit();
+        }
         log.info("Starting SSH connection...");
         String host = getTunnelSetting("host");
         String user = getTunnelSetting("user");
         String password = getTunnelSetting("password");
-        tunnelConnection = new Connection(host, 443);
+        tunnelConnection = new Connection(host, this.ssh_port);
         tunnelConnection.connect();
         tunnelConnection.authenticateWithPassword(user, password);
         for (int index = 0; index < ports.length; index++) {
             int remotePort = Integer.valueOf(tunnel_ports[index]);
             int localPort = Integer.valueOf(ports[index]);
-            tunnelConnection.requestRemotePortForwarding("0.0.0.0", remotePort, this.host, localPort);
+            tunnelConnection.requestRemotePortForwarding("0.0.0.0", remotePort, this.host,
+                    localPort);
         }
         log.info("SSH Connected. You may start your tests.");
-        this.readyfile.createNewFile();
+        if (this.readyfile != null) {
+            this.readyfile.createNewFile();
+        }
         HealthChecker forwarded_health = new HealthChecker(this.host, ports);
-        HealthChecker tunnel_health = new HealthChecker(host, new String[] { "443" },
+        HealthChecker tunnel_health = new HealthChecker(host,
+                new String[] { String.valueOf(this.ssh_port) },
                 "!! Your tests may fail because your network cannot get to the " + "tunnel host ("
-                        + host + ":443).");
+                        + host + ":" + this.ssh_port + ").");
         int health_check_interval = SauceConnect.getHealthCheckInterval();
         for (;;) {
             forwarded_health.check();
@@ -58,7 +65,7 @@ public class ReverseSSH {
     }
 
     public void stop() {
-        if(this.readyfile != null){
+        if (this.readyfile != null) {
             this.readyfile.delete();
         }
         tunnelConnection.close();

@@ -27,6 +27,7 @@ public class SauceConnect {
         options.addOption(username);
         Option apikey = new Option("k", "api-key", true, "Sauce OnDemand API key");
         apikey.setRequired(true);
+        options.addOption(apikey);
         Option readyfile = new Option("f", "readyfile", true, "Ready file that will be touched when tunnel is ready");
         options.addOption(readyfile);
         options.addOption("x", "rest-url", true, null);
