@@ -90,10 +90,11 @@ class TunnelMachine(object):
 
     _host_search = re.compile("//([^/]+)").search
 
-    def __init__(self, rest_url, user, password, domains, metadata=None):
+    def __init__(self, rest_url, user, password, domains, ssh_port, metadata=None):
         self.user = user
         self.password = password
         self.domains = set(domains)
+        self.ssh_port = ssh_port
         self.metadata = metadata or dict()
 
         self.reverse_ssh = None
@@ -190,7 +191,8 @@ class TunnelMachine(object):
         # Request a tunnel machine
         headers = {"Content-Type": "application/json"}
         data = json.dumps(dict(DomainNames=list(self.domains),
-                               Metadata=self.metadata))
+                               Metadata=self.metadata,
+                               SSHPort=self.ssh_port))
         req = urllib2.Request(url=self.base_url, headers=headers, data=data)
         doc = self._get_doc(req)
         if doc.get('error'):
@@ -340,13 +342,14 @@ class ReverseSSHError(Exception):
 
 class ReverseSSH(object):
 
-    def __init__(self, tunnel, host, ports, tunnel_ports,
+    def __init__(self, tunnel, host, ports, tunnel_ports, ssh_port,
                  use_ssh_config=False, debug=False):
         self.tunnel = tunnel
         self.host = host
         self.ports = ports
         self.tunnel_ports = tunnel_ports
         self.use_ssh_config = use_ssh_config
+        self.ssh_port = ssh_port
         self.debug = debug
 
         self.proc = None
@@ -378,8 +381,8 @@ class ReverseSSH(object):
     def get_plink_command(self):
         """Return the Windows SSH command."""
         verbosity = "-v" if self.debug else ""
-        return ("plink\plink %s -l %s -pw %s -N %s %s"
-                % (verbosity, self.tunnel.user, self.tunnel.password,
+        return ("plink\plink %s -P %s -l %s -pw %s -N %s %s"
+                % (verbosity, self.ssh_port, self.tunnel.user, self.tunnel.password,
                    self._dash_Rs, self.tunnel.host))
 
     def get_expect_script(self):
@@ -392,8 +395,8 @@ class ReverseSSH(object):
         config_file = "" if self.use_ssh_config else "-F /dev/null"
         host_ip = socket.gethostbyname(self.tunnel.host)
         script = (
-            "spawn ssh %s %s -p 22 -l %s -o ServerAliveInterval=%s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -N %s %s;"
-                % (verbosity, config_file, self.tunnel.user,
+            "spawn ssh %s %s -p %s -l %s -o ServerAliveInterval=%s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -N %s %s;"
+                % (verbosity, config_file, self.ssh_port, self.tunnel.user,
                    HEALTH_CHECK_INTERVAL, self._dash_Rs, self.tunnel.host) +
             "expect *password:;send -- %s\\r;" % self.tunnel.password +
             "expect -timeout -1 timeout")
@@ -423,9 +426,9 @@ class ReverseSSH(object):
 
         # setup recurring healthchecks
         forwarded_health = HealthChecker(self.host, self.ports)
-        tunnel_health = HealthChecker(host=self.tunnel.host, ports=[22],
+        tunnel_health = HealthChecker(host=self.tunnel.host, ports=[self.ssh_port],
             fail_msg="!! Your tests may fail because your network can not get "
-                     "to the tunnel host (%s:%d)." % (self.tunnel.host, 22))
+                     "to the tunnel host (%s:%d)." % (self.tunnel.host, self.ssh_port))
 
         start_time = int(time.time())
         while self.proc.poll() is None:
@@ -709,6 +712,8 @@ Performance tip:
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--allow-unclean-exit", action="store_true", default=False,
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--ssh-port", default=22, type="int",
+                  help=optparse.SUPPRESS_HELP)
     op.add_option_group(og)
 
     og = optparse.OptionGroup(op, "Script debugging options")
@@ -852,7 +857,8 @@ def run(options, dependency_versions=None):
     for attempt in xrange(1, RETRY_BOOT_MAX + 1):
         try:
             tunnel = TunnelMachine(options.rest_url, options.user,
-                                   options.api_key, options.domains, metadata)
+                                   options.api_key, options.domains,
+                                   options.ssh_port, metadata)
         except TunnelMachineError, e:
             logger.error(e)
             peace_out(returncode=1)  # exits
@@ -872,6 +878,7 @@ def run(options, dependency_versions=None):
 
     ssh = ReverseSSH(tunnel=tunnel, host=options.host,
                      ports=options.ports, tunnel_ports=options.tunnel_ports,
+                     ssh_port=options.ssh_port,
                      use_ssh_config=options.use_ssh_config,
                      debug=options.debug_ssh)
     try:
