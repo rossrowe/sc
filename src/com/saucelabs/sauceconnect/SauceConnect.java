@@ -74,6 +74,13 @@ public class SauceConnect {
             System.exit(1);
         }
 
+        getInterpreter();
+        interpreter.set("arglist", generateArgsForSauceConnect(parsedArgs, domain));
+        interpreter.exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
+        interpreter.exec("options = sauce_connect.get_options(arglist)");
+        interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)");
+        PythonLogHandler.install();
+
         try {
             proxy = new SauceProxy();
             proxy.start();
@@ -81,12 +88,7 @@ public class SauceConnect {
             System.err.println("Error starting proxy: " + e.getMessage());
             System.exit(2);
         }
-
-        getInterpreter();
-        interpreter.set("arglist", generateArgsForSauceConnect(parsedArgs, domain));
-        interpreter.exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
-        interpreter.exec("options = sauce_connect.get_options(arglist)");
-        interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)");
+        
         interpreter.exec("tunnel_for_java_to_kill = None");
         interpreter.exec("def setup_java_signal_handler(tunnel, options):\n"
                 + "  global tunnel_for_java_to_kill\n" + "  tunnel_for_java_to_kill = tunnel\n");
