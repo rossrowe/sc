@@ -27,19 +27,19 @@ public class SauceConnect {
         options.addOption(username);
         Option apikey = new Option("k", "api-key", true, "Sauce OnDemand API key");
         apikey.setRequired(true);
-        options.addOption(apikey);
-        options.addOption("r", "rest-url", true, null);
+        Option readyfile = new Option("f", "readyfile", true, "Ready file that will be touched when tunnel is ready");
+        options.addOption(readyfile);
+        options.addOption("x", "rest-url", true, null);
         CommandLineParser parser = new PosixParser();
         return parser.parse(options, args);
     }
 
-    private static PyList generateArgsForSauceConnect(String username, String api_key,
-            String domain, String rest_url) {
+    private static PyList generateArgsForSauceConnect(CommandLine options, String domain) {
         ArrayList<PyString> args = new ArrayList<PyString>();
         args.add(new PyString("-u"));
-        args.add(new PyString(username));
+        args.add(new PyString(options.getOptionValue('u')));
         args.add(new PyString("-k"));
-        args.add(new PyString(api_key));
+        args.add(new PyString(options.getOptionValue('k')));
         args.add(new PyString("-p"));
         args.add(new PyString("4445"));
         args.add(new PyString("-d"));
@@ -48,9 +48,15 @@ public class SauceConnect {
         args.add(new PyString("127.0.0.1"));
         args.add(new PyString("--ssh-port"));
         args.add(new PyString("443"));
+        String rest_url = options.getOptionValue('x');
         if (rest_url != null) {
             args.add(new PyString("--rest-url"));
             args.add(new PyString(rest_url));
+        }
+        String readyfile = options.getOptionValue('f');
+        if (readyfile != null) {
+            args.add(new PyString("--readyfile"));
+            args.add(new PyString(readyfile));
         }
 
         return new PyList(args);
@@ -76,11 +82,7 @@ public class SauceConnect {
         }
 
         getInterpreter();
-        interpreter.set(
-                "arglist",
-                generateArgsForSauceConnect(parsedArgs.getOptionValue('u'),
-                        parsedArgs.getOptionValue('k'), domain,
-                        parsedArgs.getOptionValue("rest-url")));
+        interpreter.set("arglist", generateArgsForSauceConnect(parsedArgs, domain));
         interpreter.exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
         interpreter.exec("options = sauce_connect.get_options(arglist)");
         interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)");

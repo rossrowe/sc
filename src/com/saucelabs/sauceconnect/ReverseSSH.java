@@ -1,5 +1,6 @@
 package com.saucelabs.sauceconnect;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.apache.commons.logging.Log;
@@ -20,12 +21,16 @@ public class ReverseSSH {
     public boolean debug;
     
     private Connection tunnelConnection;
+    private File readyfile = null;
     
     private String getTunnelSetting(String name){
         return ((PyString) this.tunnel.__getattr__(name)).asString();
     }
 
     public void run(String readyfile) throws InterruptedException, IOException {
+        this.readyfile = new File(readyfile);
+        this.readyfile.delete();
+        this.readyfile.deleteOnExit();
         log.info("Starting SSH connection...");
         String host = getTunnelSetting("host");
         String user = getTunnelSetting("user");
@@ -39,6 +44,7 @@ public class ReverseSSH {
             tunnelConnection.requestRemotePortForwarding("0.0.0.0", remotePort, this.host, localPort);
         }
         log.info("SSH Connected. You may start your tests.");
+        this.readyfile.createNewFile();
         HealthChecker forwarded_health = new HealthChecker(this.host, ports);
         HealthChecker tunnel_health = new HealthChecker(host, new String[] { "443" },
                 "!! Your tests may fail because your network cannot get to the " + "tunnel host ("
@@ -52,6 +58,9 @@ public class ReverseSSH {
     }
 
     public void stop() {
+        if(this.readyfile != null){
+            this.readyfile.delete();
+        }
         tunnelConnection.close();
     }
 }
