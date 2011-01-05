@@ -5,9 +5,9 @@ import org.mortbay.http.SocketListener;
 import org.mortbay.jetty.Server;
 
 public class SauceProxy {
-	private Server server;
-	
-	public SauceProxy(){
+    private Server server;
+
+    public SauceProxy() {
         server = new Server();
         SocketListener socketListener = new SocketListener();
         socketListener.setMaxIdleTimeMs(60000);
@@ -22,15 +22,15 @@ public class SauceProxy {
 
         root.addHandler(proxyHandler);
         server.addContext(root);
-	}
-	
-	public void start() throws Exception{
-		this.server.start();
-	}
-	
-	public static void main(String[] args) throws Exception {
-		SauceProxy proxy = new SauceProxy();
+    }
+
+    public void start() throws Exception {
+        this.server.start();
+    }
+
+    public static void main(String[] args) throws Exception {
+        SauceProxy proxy = new SauceProxy();
         proxy.start();
-	}
+    }
 
 }
