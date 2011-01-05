@@ -41,8 +41,6 @@ public class SauceConnect {
         args.add(new PyString(options.getOptionValue('u')));
         args.add(new PyString("-k"));
         args.add(new PyString(options.getOptionValue('k')));
-        args.add(new PyString("-p"));
-        args.add(new PyString("4445"));
         args.add(new PyString("-d"));
         args.add(new PyString(domain));
         args.add(new PyString("-s"));
@@ -84,6 +82,7 @@ public class SauceConnect {
         try {
             proxy = new SauceProxy();
             proxy.start();
+            interpreter.exec("options.ports = ["+proxy.getPort()+"]");
         } catch (Exception e) {
             System.err.println("Error starting proxy: " + e.getMessage());
             System.exit(2);

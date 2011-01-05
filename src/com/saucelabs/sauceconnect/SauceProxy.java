@@ -14,7 +14,7 @@ public class SauceProxy {
         SocketListener socketListener = new SocketListener();
         socketListener.setMaxIdleTimeMs(60000);
         socketListener.setMaxThreads(512);
-        socketListener.setPort(4445);
+        socketListener.setPort(0);
         server.addListener(socketListener);
 
         HttpContext root;
@@ -23,6 +23,10 @@ public class SauceProxy {
         ProxyHandler proxyHandler = new ProxyHandler(true, false);
         root.addHandler(proxyHandler);
         server.addContext(root);
+    }
+    
+    public int getPort() {
+        return this.server.getListeners()[0].getPort();
     }
 
     public void start() throws Exception {
