@@ -1,7 +1,7 @@
 // ========================================================================
-// $Id: ProxyHandler.java,v 1.34 2005/10/05 13:32:59 gregwilkins Exp $
 // Copyright 1991-2005 Mort Bay Consulting Pty. Ltd.
 // Portions of this file Copyright 2006 ThoughtWorks, Inc.
+// Portions of this file Copyright 2011 Sauce Labs, Inc.
 // ------------------------------------------------------------------------
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 package com.saucelabs.sauceconnect.proxy;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLHandshakeException;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -35,10 +33,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import cybervillains.ca.KeyStoreManager;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLHandshakeException;
+
 import org.apache.commons.logging.Log;
 import org.mortbay.http.HttpConnection;
-import org.mortbay.http.HttpContext;
 import org.mortbay.http.HttpException;
 import org.mortbay.http.HttpFields;
 import org.mortbay.http.HttpMessage;
@@ -46,10 +45,8 @@ import org.mortbay.http.HttpRequest;
 import org.mortbay.http.HttpResponse;
 import org.mortbay.http.HttpServer;
 import org.mortbay.http.HttpTunnel;
-import org.mortbay.http.SocketListener;
 import org.mortbay.http.SslListener;
 import org.mortbay.http.handler.AbstractHttpHandler;
-import org.mortbay.jetty.Server;
 import org.mortbay.log.LogFactory;
 import org.mortbay.util.IO;
 import org.mortbay.util.InetAddrPort;
@@ -58,6 +55,8 @@ import org.mortbay.util.LogSupport;
 import org.mortbay.util.StringMap;
 import org.mortbay.util.URI;
 
+import cybervillains.ca.KeyStoreManager;
+
 /* ------------------------------------------------------------ */
 
 /**
@@ -65,10 +64,6 @@ import org.mortbay.util.URI;
  * make proxy requests.
  * <p/>
  * The HttpTunnel mechanism is also used to implement the CONNECT method.
- *
- * @author Greg Wilkins (gregw)
- * @author giacof@tiscali.it (chained proxy)
- * @version $Id: ProxyHandler.java,v 1.34 2005/10/05 13:32:59 gregwilkins Exp $
  */
 public class ProxyHandler extends AbstractHttpHandler {
     private static Log log = LogFactory.getLog(ProxyHandler.class);
@@ -83,9 +78,6 @@ public class ProxyHandler extends AbstractHttpHandler {
     private String sslKeystorePath;
     private boolean useCyberVillains = true;
     private boolean trustAllSSLCertificates = false;
-    private final String dontInjectRegex;
-    private final String debugURL;
-    private final boolean proxyInjectionMode;
     private final boolean forceProxyChain;
     private boolean fakeCertsGenerated;
 
@@ -159,12 +151,9 @@ public class ProxyHandler extends AbstractHttpHandler {
         _allowedConnectPorts.add(8443);
     }
 
-    public ProxyHandler(boolean trustAllSSLCertificates, String dontInjectRegex, String debugURL, boolean proxyInjectionMode, boolean forceProxyChain) {
+    public ProxyHandler(boolean trustAllSSLCertificates, boolean forceProxyChain) {
         super();
         this.trustAllSSLCertificates = trustAllSSLCertificates;
-        this.dontInjectRegex = dontInjectRegex;
-        this.debugURL = debugURL;
-        this.proxyInjectionMode = proxyInjectionMode;
         this.forceProxyChain = forceProxyChain;
     }
 
@@ -388,7 +377,7 @@ public class ProxyHandler extends AbstractHttpHandler {
 
         // Proxy headers
         if (!_anonymous)
-            connection.setRequestProperty("Via", "1.1 (jetty)");
+            connection.setRequestProperty("Via", "1.1 (Sauce Connect)");
         if (!xForwardedFor)
             connection.addRequestProperty(HttpFields.__XForwardedFor, request.getRemoteAddr());
 
@@ -464,7 +453,7 @@ public class ProxyHandler extends AbstractHttpHandler {
             val = connection.getHeaderField(h);
         }
         if (!_anonymous)
-            response.setField("Via", "1.1 (jetty)");
+            response.setField("Via", "1.1 (Sauce Connect)");
 
         response.removeField(HttpFields.__ETag); // possible cksum?  Stop caching...
         response.removeField(HttpFields.__LastModified); // Stop caching...
@@ -476,28 +465,6 @@ public class ProxyHandler extends AbstractHttpHandler {
             bytesCopied = ModifiedIO.copy(proxy_in, response.getOutputStream());
         }
         return bytesCopied;
-    }
-
-
-    public boolean shouldInject(String path) {
-        if (dontInjectRegex == null) {
-            return true;
-        }
-        return !path.matches(dontInjectRegex);
-    }
-
-    public static void main(String[] args) throws Exception {
-        Server server = new Server();
-        HttpContext httpContext = new HttpContext();
-        httpContext.setContextPath("/");
-        ProxyHandler proxy = new ProxyHandler(true, "", "", false, false);
-        proxy.useCyberVillains = false;
-        httpContext.addHandler(proxy);
-        server.addContext(httpContext);
-        SocketListener listener = new SocketListener();
-        listener.setPort(4444);
-        server.addListener(listener);
-        server.start();
     }
 
     public synchronized void generateSSLCertsForLoggingHosts(HttpServer server) {
@@ -837,20 +804,10 @@ public class ProxyHandler extends AbstractHttpHandler {
         response.sendError(HttpResponse.__404_Not_Found, "Not found");
     }
 
-    /* ------------------------------------------------------------ */
-
-    /**
-     * @return Returns the anonymous.
-     */
     public boolean isAnonymous() {
         return _anonymous;
     }
 
-    /* ------------------------------------------------------------ */
-
-    /**
-     * @param anonymous The anonymous to set.
-     */
     public void setAnonymous(boolean anonymous) {
         _anonymous = anonymous;
     }

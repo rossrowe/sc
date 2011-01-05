@@ -20,7 +20,7 @@ public class SauceProxy {
         HttpContext root;
         root = new HttpContext();
         root.setContextPath("/");
-        ProxyHandler proxyHandler = new ProxyHandler(true, "", "", false, false);
+        ProxyHandler proxyHandler = new ProxyHandler(true, false);
         root.addHandler(proxyHandler);
         server.addContext(root);
     }
