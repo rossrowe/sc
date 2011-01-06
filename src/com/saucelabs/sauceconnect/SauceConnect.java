@@ -20,42 +20,52 @@ public class SauceConnect {
         return interpreter;
     }
 
-    private static CommandLine parseArgs(String[] args) throws ParseException {
-        Options options = new Options();
-        Option username = new Option("u", "username", true, "Sauce OnDemand account name");
-        username.setRequired(true);
-        options.addOption(username);
-        Option apikey = new Option("k", "api-key", true, "Sauce OnDemand API key");
-        apikey.setRequired(true);
-        options.addOption(apikey);
-        Option readyfile = new Option("f", "readyfile", true, "Ready file that will be touched when tunnel is ready");
-        options.addOption(readyfile);
-        options.addOption("x", "rest-url", true, null);
-        CommandLineParser parser = new PosixParser();
-        return parser.parse(options, args);
+    private static CommandLine parseArgs(String[] args) {
+            Options options = new Options();
+            Option readyfile = new Option("f", "readyfile", true, "Ready file that will be touched when tunnel is ready");
+            readyfile.setArgName("FILE");
+            options.addOption(readyfile);
+            options.addOption("x", "rest-url", true, "Advanced feature: Connect to Sauce OnDemand at alternative URL." +
+            		" Use only if directed to by Sauce Labs support.");
+        try {
+            CommandLineParser parser = new PosixParser();
+            CommandLine result = parser.parse(options, args);
+            if(result.getArgs().length == 0){
+                throw new ParseException("Missing required argument USERNAME");
+            }
+            if(result.getArgs().length == 1){
+                throw new ParseException("Missing required argument API_KEY");
+            }
+            return result;
+        } catch (ParseException e) {
+            System.err.println(e.getMessage());
+            System.err.println();
+            HelpFormatter help = new HelpFormatter();
+            help.printHelp("java -jar Sauce_Connect.jar USERNAME API_KEY [OPTIONS]", options);
+            System.exit(1);
+            return null;
+        }
     }
 
     private static PyList generateArgsForSauceConnect(CommandLine options, String domain) {
         ArrayList<PyString> args = new ArrayList<PyString>();
         args.add(new PyString("-u"));
-        args.add(new PyString(options.getOptionValue('u')));
+        args.add(new PyString(options.getArgs()[0]));
         args.add(new PyString("-k"));
-        args.add(new PyString(options.getOptionValue('k')));
+        args.add(new PyString(options.getArgs()[1]));
         args.add(new PyString("-d"));
         args.add(new PyString(domain));
         args.add(new PyString("-s"));
         args.add(new PyString("127.0.0.1"));
         args.add(new PyString("--ssh-port"));
         args.add(new PyString("443"));
-        String rest_url = options.getOptionValue('x');
-        if (rest_url != null) {
+        if (options.hasOption('x')) {
             args.add(new PyString("--rest-url"));
-            args.add(new PyString(rest_url));
+            args.add(new PyString(options.getOptionValue('x')));
         }
-        String readyfile = options.getOptionValue('f');
-        if (readyfile != null) {
+        if (options.hasOption('f')) {
             args.add(new PyString("--readyfile"));
-            args.add(new PyString(readyfile));
+            args.add(new PyString(options.getOptionValue('f')));
         }
 
         return new PyList(args);
@@ -63,14 +73,9 @@ public class SauceConnect {
 
     public static void main(String[] args) {
         CommandLine parsedArgs = null;
-        String domain = String.valueOf(new Random().nextInt(10000)) + ".proxy.saucelabs.com";
+        String domain = String.valueOf(new Random().nextInt(10000)) + ".proxy";
 
-        try {
-            parsedArgs = parseArgs(args);
-        } catch (ParseException e1) {
-            System.err.println(e1.getMessage());
-            System.exit(1);
-        }
+        parsedArgs = parseArgs(args);
 
         getInterpreter();
         interpreter.set("arglist", generateArgsForSauceConnect(parsedArgs, domain));
@@ -82,7 +87,7 @@ public class SauceConnect {
         try {
             proxy = new SauceProxy();
             proxy.start();
-            interpreter.exec("options.ports = ["+proxy.getPort()+"]");
+            interpreter.exec("options.ports = ['"+proxy.getPort()+"']");
         } catch (Exception e) {
             System.err.println("Error starting proxy: " + e.getMessage());
             System.exit(2);
@@ -107,6 +112,8 @@ public class SauceConnect {
                     + "setup_signal_handler=setup_java_signal_handler,"
                     + "reverse_ssh=JavaReverseSSH)");
         } catch (Exception e) {
+            // uncomment for debugging:
+            //e.printStackTrace();
             System.exit(3);
         }
     }
