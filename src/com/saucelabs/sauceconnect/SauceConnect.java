@@ -1,5 +1,6 @@
 package com.saucelabs.sauceconnect;
 
+import java.awt.EventQueue;
 import java.util.ArrayList;
 
 import org.apache.commons.cli.*;
@@ -40,7 +41,7 @@ public class SauceConnect {
             CommandLineParser parser = new PosixParser();
             CommandLine result = parser.parse(options, args);
             if(result.getArgs().length == 0){
-                throw new ParseException("Missing required argument USERNAME");
+                return null;
             }
             if(result.getArgs().length == 1){
                 throw new ParseException("Missing required argument API_KEY");
@@ -56,25 +57,27 @@ public class SauceConnect {
         }
     }
 
-    private static PyList generateArgsForSauceConnect(CommandLine options, String domain) {
+    private static PyList generateArgsForSauceConnect(String username, String apikey, String domain, CommandLine options) {
         ArrayList<PyString> args = new ArrayList<PyString>();
         args.add(new PyString("-u"));
-        args.add(new PyString(options.getArgs()[0]));
+        args.add(new PyString(username));
         args.add(new PyString("-k"));
-        args.add(new PyString(options.getArgs()[1]));
+        args.add(new PyString(apikey));
         args.add(new PyString("-d"));
         args.add(new PyString(domain));
         args.add(new PyString("-s"));
         args.add(new PyString("127.0.0.1"));
         args.add(new PyString("--ssh-port"));
         args.add(new PyString("443"));
-        if (options.hasOption('x')) {
-            args.add(new PyString("--rest-url"));
-            args.add(new PyString(options.getOptionValue('x')));
-        }
-        if (options.hasOption('f')) {
-            args.add(new PyString("--readyfile"));
-            args.add(new PyString(options.getOptionValue('f')));
+        if (options != null) {
+            if (options.hasOption('x')) {
+                args.add(new PyString("--rest-url"));
+                args.add(new PyString(options.getOptionValue('x')));
+            }
+            if (options.hasOption('f')) {
+                args.add(new PyString("--readyfile"));
+                args.add(new PyString(options.getOptionValue('f')));
+            }
         }
 
         return new PyList(args);
@@ -82,18 +85,51 @@ public class SauceConnect {
 
     public static void main(String[] args) {
         CommandLine parsedArgs = null;
+        SauceGUI gui = null;
 
         parsedArgs = parseArgs(args);
+        
         String domain = "sauce-connect.proxy";
-        if(parsedArgs.hasOption("proxy-host")) {
-            domain = parsedArgs.getOptionValue("proxy-host");
+
+        if(parsedArgs == null) {
+            final SauceGUI finalGui = new SauceGUI();
+            gui = finalGui;
+            EventQueue.invokeLater(new Runnable() {
+                public void run() {
+                    finalGui.start();
+                }
+            });
+            try {
+                synchronized(gui){
+                    gui.wait();
+                    getInterpreter().set(
+                            "arglist",
+                            generateArgsForSauceConnect(gui.username.getText(),
+                                    gui.apikey.getText(), domain, null));
+                }
+            } catch (InterruptedException e) {
+                System.exit(4);
+            }
+        } else {
+            if(parsedArgs.hasOption("proxy-host")) {
+                domain = parsedArgs.getOptionValue("proxy-host");
+                getInterpreter().set(
+                        "arglist",
+                        generateArgsForSauceConnect(parsedArgs.getArgs()[0],
+                                parsedArgs.getArgs()[1], domain, parsedArgs));
+            }
         }
 
-        getInterpreter();
-        interpreter.set("arglist", generateArgsForSauceConnect(parsedArgs, domain));
-        interpreter.exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
         interpreter.exec("options = sauce_connect.get_options(arglist)");
         interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)");
+        if(gui != null){
+            interpreter.set("guiwriter", new TextPanelLogger(gui.logPane));
+            interpreter.exec("import logging\n" +
+            		"guilogger = sauce_connect.logging.StreamHandler(guiwriter)\n" +
+            		"guilogger.setLevel(logging.INFO)\n" +
+            		"guilogger.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))\n" +
+            		"sauce_connect.logger.addHandler(guilogger)\n");
+        }
         PythonLogHandler.install();
 
         try {
@@ -120,6 +156,7 @@ public class SauceConnect {
         });
 
         try {
+            getInterpreter().exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
             interpreter.exec("sauce_connect.run(options,"
                     + "setup_signal_handler=setup_java_signal_handler,"
                     + "reverse_ssh=JavaReverseSSH)");
