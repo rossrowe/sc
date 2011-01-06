@@ -113,14 +113,14 @@ public class SauceConnect {
         } else {
             if(parsedArgs.hasOption("proxy-host")) {
                 domain = parsedArgs.getOptionValue("proxy-host");
-                getInterpreter().set(
-                        "arglist",
-                        generateArgsForSauceConnect(parsedArgs.getArgs()[0],
-                                parsedArgs.getArgs()[1], domain, parsedArgs));
             }
+            getInterpreter().set(
+                    "arglist",
+                    generateArgsForSauceConnect(parsedArgs.getArgs()[0],
+                            parsedArgs.getArgs()[1], domain, parsedArgs));
         }
 
-        interpreter.exec("options = sauce_connect.get_options(arglist)");
+        getInterpreter().exec("options = sauce_connect.get_options(arglist)");
         interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)");
         if(gui != null){
             interpreter.set("guiwriter", new TextPanelLogger(gui.logPane));

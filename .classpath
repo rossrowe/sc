@@ -9,7 +9,6 @@
 	<classpathentry kind="lib" path="lib/org.mortbay.jetty.jar"/>
 	<classpathentry kind="lib" path="lib/bcprov-jdk15-135.jar"/>
 	<classpathentry kind="lib" path="lib/commons-logging-1.1.1.jar"/>
-	<classpathentry kind="lib" path="lib/jyson-1.0.1.jar"/>
 	<classpathentry kind="lib" path="lib/jython.jar"/>
 	<classpathentry kind="lib" path="lib/ganymed-ssh2-build251beta1.jar"/>
 	<classpathentry kind="lib" path="lib/commons-cli-1.2.jar"/>
