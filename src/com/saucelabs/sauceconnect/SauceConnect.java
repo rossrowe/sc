@@ -1,7 +1,6 @@
 package com.saucelabs.sauceconnect;
 
 import java.util.ArrayList;
-import java.util.Random;
 
 import org.apache.commons.cli.*;
 import org.apache.commons.cli.Options;
@@ -27,6 +26,16 @@ public class SauceConnect {
             options.addOption(readyfile);
             options.addOption("x", "rest-url", true, "Advanced feature: Connect to Sauce OnDemand at alternative URL." +
             		" Use only if directed to by Sauce Labs support.");
+            
+            @SuppressWarnings("static-access")
+            Option proxyHost = OptionBuilder.withArgName("HOSTNAME").
+                                            hasArg().
+                                            withDescription("Set 'proxy-host' field on jobs to the same " +
+                                            		"value to use this Sauce Connect connection. " +
+                                            		"Defaults to sauce-connect.proxy.").
+                                            withLongOpt("proxy-host").
+                                    		create("h");
+            options.addOption(proxyHost);
         try {
             CommandLineParser parser = new PosixParser();
             CommandLine result = parser.parse(options, args);
@@ -73,9 +82,12 @@ public class SauceConnect {
 
     public static void main(String[] args) {
         CommandLine parsedArgs = null;
-        String domain = String.valueOf(new Random().nextInt(10000)) + ".proxy";
 
         parsedArgs = parseArgs(args);
+        String domain = "sauce-connect.proxy";
+        if(parsedArgs.hasOption("proxy-host")) {
+            domain = parsedArgs.getOptionValue("proxy-host");
+        }
 
         getInterpreter();
         interpreter.set("arglist", generateArgsForSauceConnect(parsedArgs, domain));
