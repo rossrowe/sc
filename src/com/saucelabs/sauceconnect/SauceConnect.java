@@ -1,12 +1,30 @@
 package com.saucelabs.sauceconnect;
 
 import java.awt.EventQueue;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
-import org.python.core.*;
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.PosixParser;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.python.core.PyInteger;
+import org.python.core.PyList;
+import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
+
+import com.saucelabs.sauceconnect.proxy.Base64Encoder;
 
 public class SauceConnect {
     private static PythonInterpreter interpreter = null;
@@ -20,6 +38,7 @@ public class SauceConnect {
         return interpreter;
     }
 
+    @SuppressWarnings("static-access")
     private static CommandLine parseArgs(String[] args) {
             Options options = new Options();
             Option readyfile = new Option("f", "readyfile", true, "Ready file that will be touched when tunnel is ready");
@@ -28,7 +47,6 @@ public class SauceConnect {
             options.addOption("x", "rest-url", true, "Advanced feature: Connect to Sauce OnDemand at alternative URL." +
             		" Use only if directed to by Sauce Labs support.");
             
-            @SuppressWarnings("static-access")
             Option proxyHost = OptionBuilder.withArgName("HOSTNAME").
                                             hasArg().
                                             withDescription("Set 'proxy-host' field on jobs to the same " +
@@ -37,6 +55,13 @@ public class SauceConnect {
                                             withLongOpt("proxy-host").
                                     		create("h");
             options.addOption(proxyHost);
+            
+            options.addOption(OptionBuilder.withLongOpt("dont-update-proxy-host").
+                    withDescription("Don't update default proxy-host value for" +
+                    		"this account while tunnel is setup. The default is" +
+                    		"to update proxy-host automatically so that you don't" +
+                    		"have to change your tests").create());
+            
         try {
             CommandLineParser parser = new PosixParser();
             CommandLine result = parser.parse(options, args);
@@ -84,11 +109,8 @@ public class SauceConnect {
     }
 
     public static void main(String[] args) {
-        CommandLine parsedArgs = null;
+        final CommandLine parsedArgs = parseArgs(args);;
         SauceGUI gui = null;
-
-        parsedArgs = parseArgs(args);
-        
         String domain = "sauce-connect.proxy";
 
         if(parsedArgs == null) {
@@ -113,6 +135,10 @@ public class SauceConnect {
         } else {
             if(parsedArgs.hasOption("proxy-host")) {
                 domain = parsedArgs.getOptionValue("proxy-host");
+            }
+            if(!parsedArgs.hasOption("dont-update-proxy-host")){
+                updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], domain,
+                        parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
             }
             getInterpreter().set(
                     "arglist",
@@ -148,6 +174,10 @@ public class SauceConnect {
         final Thread mainThread = Thread.currentThread();
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
+                if(parsedArgs != null) {
+                    updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], null,
+                            parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
+                }
                 interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)");
                 mainThread.interrupt();
                 interpreter
@@ -164,6 +194,41 @@ public class SauceConnect {
             // uncomment for debugging:
             //e.printStackTrace();
             System.exit(3);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void updateDefaultProxyHost(String username, String password, String proxyHost, String restURL) {
+        try {
+            URL restEndpoint = new URL(restURL+"/v1/"+username+"/defaults");
+            String auth = username + ":" + password;
+            auth = "Basic " + new Base64Encoder().encode(auth.getBytes());
+            URLConnection connection = restEndpoint.openConnection();
+            connection.setRequestProperty("Authorization", auth);
+            InputStream data = connection.getInputStream();
+            JSONParser parser = new JSONParser();
+            JSONObject currentDefaults = (JSONObject)parser.parse(new InputStreamReader(data));
+            if(proxyHost != null) {
+                currentDefaults.put("proxy-host", proxyHost);
+            } else {
+                currentDefaults.remove("proxy-host");
+            }
+            
+            HttpURLConnection postBack = (HttpURLConnection) restEndpoint.openConnection();
+            postBack.setDoOutput(true);
+            postBack.setRequestMethod("PUT");
+            postBack.setRequestProperty("Authorization", auth);
+            String newDefaults = currentDefaults.toJSONString();
+            postBack.getOutputStream().write(newDefaults.getBytes());
+            postBack.getInputStream().close();
+        } catch(IOException e) {
+            System.err.println("Error connecting to Sauce OnDemand REST API: ");
+            e.printStackTrace();
+            System.exit(5);
+        } catch(org.json.simple.parser.ParseException e) {
+            System.err.println("Error reading from Sauce OnDemand REST API: ");
+            e.printStackTrace();
+            System.exit(5);
         }
     }
 
