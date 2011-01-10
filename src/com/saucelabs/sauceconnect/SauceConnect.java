@@ -178,7 +178,7 @@ public class SauceConnect {
         final Thread mainThread = Thread.currentThread();
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
-                if(parsedArgs != null) {
+                if(parsedArgs != null && !parsedArgs.hasOption("dont-update-proxy-host")) {
                     updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], null,
                             parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
                 }
