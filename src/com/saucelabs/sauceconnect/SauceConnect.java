@@ -53,18 +53,22 @@ public class SauceConnect {
                                             		"value to use this Sauce Connect connection. " +
                                             		"Defaults to sauce-connect.proxy.").
                                             withLongOpt("proxy-host").
-                                    		create("h");
+                                    		create('p');
             options.addOption(proxyHost);
             
             options.addOption(OptionBuilder.withLongOpt("dont-update-proxy-host").
-                    withDescription("Don't update default proxy-host value for" +
-                    		"this account while tunnel is setup. The default is" +
-                    		"to update proxy-host automatically so that you don't" +
-                    		"have to change your tests").create());
+                    withDescription("Don't update default proxy-host value for " +
+                    		"this account while tunnel is running.").create());
             
+            options.addOption("h", "help", false, "Display this help text");
         try {
             CommandLineParser parser = new PosixParser();
             CommandLine result = parser.parse(options, args);
+            if(result.hasOption("help")){
+                HelpFormatter help = new HelpFormatter();
+                help.printHelp("java -jar Sauce_Connect.jar USERNAME API_KEY [OPTIONS]", options);
+                System.exit(0);
+            }
             if(result.getArgs().length == 0){
                 return null;
             }

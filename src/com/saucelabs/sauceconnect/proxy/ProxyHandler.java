@@ -258,6 +258,8 @@ public class ProxyHandler extends AbstractHttpHandler {
     public void handle(String pathInContext, String pathParams, HttpRequest request, HttpResponse response) throws HttpException, IOException {
         URI uri = request.getURI();
 
+        log.info(request.getMethod() + " " + uri.toString());
+
         // Is this a CONNECT request?
         if (HttpRequest.__CONNECT.equalsIgnoreCase(request.getMethod())) {
             response.setField(HttpFields.__Connection, "close"); // TODO Needed for IE????
