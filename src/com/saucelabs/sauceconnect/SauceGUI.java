@@ -3,18 +3,21 @@ package com.saucelabs.sauceconnect;
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.prefs.Preferences;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
+import javax.swing.Timer;
 
 import com.jgoodies.forms.factories.FormFactory;
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.RowSpec;
 import javax.swing.JScrollPane;
+import javax.swing.JProgressBar;
 
 public class SauceGUI {
 
@@ -23,6 +26,7 @@ public class SauceGUI {
     public JTextField apikey;
     public JTextPane logPane;
     public JScrollPane logScroll;
+    private JProgressBar progressBar;
 
     /**
      * Launch the application.
@@ -49,6 +53,7 @@ public class SauceGUI {
      */
     public SauceGUI() {
         initialize();
+        loadPreferences();
     }
 
     /**
@@ -66,6 +71,8 @@ public class SauceGUI {
                 ColumnSpec.decode("default:grow"),
                 FormFactory.RELATED_GAP_COLSPEC,},
             new RowSpec[] {
+                FormFactory.RELATED_GAP_ROWSPEC,
+                FormFactory.DEFAULT_ROWSPEC,
                 FormFactory.RELATED_GAP_ROWSPEC,
                 FormFactory.DEFAULT_ROWSPEC,
                 FormFactory.RELATED_GAP_ROWSPEC,
@@ -92,8 +99,10 @@ public class SauceGUI {
         final JButton startButton = new JButton("Connect");
         startButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent arg0) {
+                SauceGUI.this.savePreferences();
+                SauceGUI.this.launchProgressUpdater();
                 synchronized(SauceGUI.this){
-                    logPane.setText("Connecting...");
+                    logPane.setText("Connecting...\n");
                     startButton.setEnabled(false);
                     SauceGUI.this.notifyAll();
                 }
@@ -101,11 +110,50 @@ public class SauceGUI {
         });
         frmSauceConnect.getContentPane().add(startButton, "2, 6, 3, 1");
         
+        progressBar = new JProgressBar();
+        progressBar.setMaximum(1000);
+        frmSauceConnect.getContentPane().add(progressBar, "2, 8, 3, 1");
+        
         logScroll = new JScrollPane();
-        frmSauceConnect.getContentPane().add(logScroll, "2, 8, 3, 1, fill, fill");
+        frmSauceConnect.getContentPane().add(logScroll, "2, 10, 3, 1, fill, fill");
         
         logPane = new JTextPane();
         logPane.setEditable(false);
         logScroll.setViewportView(logPane);
+    }
+
+    protected void launchProgressUpdater() {
+        final long start = System.currentTimeMillis();
+        final Timer clock = new Timer(30, new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                int lines = LineCounter.countLines(SauceGUI.this.logPane.getText());
+                if(lines == 1){
+                    // assume Jython takes ~5 seconds to start up
+                    double progress = (500.0-(1000000.0/((System.currentTimeMillis()-start)+2000)));
+                    SauceGUI.this.progressBar.setValue((int)progress);
+                } else {
+                    // 18 lines = running
+                    // if we're printing text, we're past 50% started
+                    SauceGUI.this.progressBar.setValue(500 + (lines*500/18));
+                }
+                if(lines > 18){
+                    SauceGUI.this.progressBar.setValue(1000);
+                    ((Timer)e.getSource()).stop();
+                }
+            }
+        });
+        clock.start();
+    }
+
+    protected void savePreferences() {
+        Preferences prefs = Preferences.userNodeForPackage(getClass());
+        prefs.put("username", this.username.getText());
+        prefs.put("api_key", this.apikey.getText());
+    }
+    
+    protected void loadPreferences() {
+        Preferences prefs = Preferences.userNodeForPackage(getClass());
+        this.username.setText(prefs.get("username", ""));
+        this.apikey.setText(prefs.get("api_key", ""));
     }
 }
