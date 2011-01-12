@@ -734,9 +734,9 @@ Performance tip:
         print "Help with options -t and -p:"
         print "  All ports must be integers. You used:"
         if options.ports:
-            print "    -p", ",".join(options.ports)
+            print "    -p", " -p ".join(options.ports)
         if options.tunnel_ports:
-            print "    -t", ",".join(options.tunnel_ports)
+            print "    -t", " -t ".join(options.tunnel_ports)
         raise SystemExit(1)
 
     # default to 80 and default to matching host ports with tunnel ports
