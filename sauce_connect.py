@@ -725,6 +725,20 @@ Performance tip:
 
     (options, args) = op.parse_args()
 
+    # check ports are numbers
+    try:
+        map(int, options.ports)
+        map(int, options.tunnel_ports)
+    except ValueError:
+        sys.stderr.write("Error: Ports must be integers\n\n")
+        print "Help with options -t and -p:"
+        print "  All ports must be integers. You used:"
+        if options.ports:
+            print "    -p", ",".join(options.ports)
+        if options.tunnel_ports:
+            print "    -t", ",".join(options.tunnel_ports)
+        raise SystemExit(1)
+
     # default to 80 and default to matching host ports with tunnel ports
     if not options.ports and not options.tunnel_ports:
         options.ports = ["80"]
