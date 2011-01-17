@@ -8,6 +8,7 @@ import java.util.prefs.Preferences;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.Timer;
@@ -16,6 +17,7 @@ import com.jgoodies.forms.factories.FormFactory;
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.RowSpec;
+
 import javax.swing.JScrollPane;
 import javax.swing.JProgressBar;
 
@@ -27,6 +29,12 @@ public class SauceGUI {
     public JTextPane logPane;
     public JScrollPane logScroll;
     private JProgressBar progressBar;
+    public JButton startButton;
+    private int state = STATE_INIT;
+    
+    private static final int STATE_INIT = 0;
+    private static final int STATE_CONNECTING = 1;
+    private static final int STATE_CONNECTED = 2;
 
     /**
      * Launch the application.
@@ -96,16 +104,10 @@ public class SauceGUI {
         frmSauceConnect.getContentPane().add(apikey, "4, 4, fill, default");
         apikey.setColumns(10);
         
-        final JButton startButton = new JButton("Connect");
+        startButton = new JButton("Connect");
         startButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent arg0) {
-                SauceGUI.this.savePreferences();
-                SauceGUI.this.launchProgressUpdater();
-                synchronized(SauceGUI.this){
-                    logPane.setText("Connecting...\n");
-                    startButton.setEnabled(false);
-                    SauceGUI.this.notifyAll();
-                }
+                SauceGUI.this.connectPressed();
             }
         });
         frmSauceConnect.getContentPane().add(startButton, "2, 6, 3, 1");
@@ -136,9 +138,13 @@ public class SauceGUI {
                     // if we're printing text, we're past 50% started
                     SauceGUI.this.progressBar.setValue(500 + (lines*500/18));
                 }
-                if(lines > 18){
+                if(SauceGUI.this.logPane.getText().indexOf("You may start your tests.") != -1){
                     SauceGUI.this.progressBar.setValue(1000);
                     ((Timer)e.getSource()).stop();
+                    JOptionPane.showMessageDialog(SauceGUI.this.frmSauceConnect,
+                            "Sauce Connect is ready. You may run your tests", "Connected",
+                            JOptionPane.INFORMATION_MESSAGE);
+                    SauceGUI.this.setupDisconnect();
                 }
             }
         });
@@ -155,5 +161,34 @@ public class SauceGUI {
         Preferences prefs = Preferences.userNodeForPackage(getClass());
         this.username.setText(prefs.get("username", ""));
         this.apikey.setText(prefs.get("api_key", ""));
+    }
+    
+    protected void connectPressed() {
+        switch(this.state) {
+        case STATE_INIT:
+            savePreferences();
+            launchProgressUpdater();
+            synchronized(this) {
+                this.state = STATE_CONNECTING;
+                logPane.setText("Connecting...\n");
+                startButton.setEnabled(false);
+                SauceGUI.this.notifyAll();
+            }
+            break;
+        
+        case STATE_CONNECTED:
+            disconnect();
+            break;
+        }
+    }
+    
+    protected void setupDisconnect() {
+        this.state = STATE_CONNECTED;
+        startButton.setText("Disconnect");
+        startButton.setEnabled(true);
+    }
+    
+    protected void disconnect() {
+        System.exit(0);
     }
 }
