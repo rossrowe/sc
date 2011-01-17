@@ -69,7 +69,7 @@ public class SauceConnect {
                 System.exit(0);
             }
             if(result.getArgs().length == 0){
-                return null;
+                throw new ParseException("Missing required arguments USERNAME, API_KEY");
             }
             if(result.getArgs().length == 1){
                 throw new ParseException("Missing required argument API_KEY");
@@ -113,52 +113,23 @@ public class SauceConnect {
 
     public static void main(String[] args) {
         final CommandLine parsedArgs = parseArgs(args);;
-        SauceGUI gui = null;
         String domain = "sauce-connect.proxy";
+        
 
-        if(parsedArgs == null) {
-            final SauceGUI finalGui = new SauceGUI();
-            gui = finalGui;
-            EventQueue.invokeLater(new Runnable() {
-                public void run() {
-                    finalGui.start();
-                }
-            });
-            try {
-                synchronized(gui){
-                    gui.wait();
-                    getInterpreter().set(
-                            "arglist",
-                            generateArgsForSauceConnect(gui.username.getText(),
-                                    gui.apikey.getText(), domain, null));
-                }
-            } catch (InterruptedException e) {
-                System.exit(4);
-            }
-        } else {
-            if(parsedArgs.hasOption("proxy-host")) {
-                domain = parsedArgs.getOptionValue("proxy-host");
-            }
-            if(!parsedArgs.hasOption("dont-update-proxy-host")){
-                updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], domain,
-                        parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
-            }
-            getInterpreter().set(
-                    "arglist",
-                    generateArgsForSauceConnect(parsedArgs.getArgs()[0],
-                            parsedArgs.getArgs()[1], domain, parsedArgs));
+        if(parsedArgs.hasOption("proxy-host")) {
+            domain = parsedArgs.getOptionValue("proxy-host");
         }
+        if(!parsedArgs.hasOption("dont-update-proxy-host")){
+            updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], domain,
+                    parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
+        }
+        getInterpreter().set(
+                "arglist",
+                generateArgsForSauceConnect(parsedArgs.getArgs()[0],
+                        parsedArgs.getArgs()[1], domain, parsedArgs));
 
         getInterpreter().exec("options = sauce_connect.get_options(arglist)");
         interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)");
-        if(gui != null){
-            interpreter.set("guiwriter", new TextPanelLogger(gui.logPane));
-            interpreter.exec("import logging\n" +
-            		"guilogger = sauce_connect.logging.StreamHandler(guiwriter)\n" +
-            		"guilogger.setLevel(logging.INFO)\n" +
-            		"guilogger.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))\n" +
-            		"sauce_connect.logger.addHandler(guilogger)\n");
-        }
         PythonLogHandler.install();
 
         try {
