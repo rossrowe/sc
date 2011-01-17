@@ -1,3 +1,7 @@
+2011-01-17	1.0-r25  Sauce Labs <help@saucelabs.com>
+
+    * Fix REST auth error for accounts with long usernames.
+
 2011-01-10	1.0-r24  Sauce Labs <help@saucelabs.com>
 
     * Fix Python 2.5 incompatibility.

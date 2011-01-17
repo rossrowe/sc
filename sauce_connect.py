@@ -27,6 +27,7 @@ import time
 import platform
 import tempfile
 import string
+from base64 import b64encode
 from collections import defaultdict
 from contextlib import closing
 from functools import wraps
@@ -101,8 +102,8 @@ class TunnelMachine(object):
         self.is_shutdown = False
         self.base_url = "%(rest_url)s/%(user)s/tunnels" % locals()
         self.rest_host = self._host_search(rest_url).group(1)
-        self.basic_auth_header = {"Authorization": "Basic %s" %
-            ("%s:%s" % (user, password)).encode("base64").strip()}
+        self.basic_auth_header = {"Authorization": "Basic %s"
+                                  % b64encode("%s:%s" % (user, password))}
 
         self._set_urlopen(user, password)
 
