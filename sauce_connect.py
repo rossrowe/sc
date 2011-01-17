@@ -27,6 +27,7 @@ import time
 import platform
 import tempfile
 import string
+from base64 import b64encode
 from collections import defaultdict
 from contextlib import closing
 from functools import wraps
@@ -45,7 +46,7 @@ except ImportError:
     class InterruptedException(Exception): pass
 
 NAME = "sauce_connect"
-RELEASE = 24
+RELEASE = 25
 DISPLAY_VERSION = "%s release %s" % (NAME, RELEASE)
 PRODUCT_NAME = u"Sauce Connect"
 VERSIONS_URL = "http://saucelabs.com/versions.json"
@@ -110,8 +111,8 @@ class TunnelMachine(object):
         self.is_shutdown = False
         self.base_url = "%(rest_url)s/%(user)s/tunnels" % locals()
         self.rest_host = self._host_search(rest_url).group(1)
-        self.basic_auth_header = {"Authorization": "Basic %s" %
-            ("%s:%s" % (user, password)).encode("base64").strip()}
+        self.basic_auth_header = {"Authorization": "Basic %s"
+                                  % b64encode("%s:%s" % (user, password))}
 
         self._set_urlopen(user, password)
 
@@ -739,6 +740,20 @@ Performance tip:
     op.add_option_group(og)
 
     (options, args) = op.parse_args(arglist)
+
+    # check ports are numbers
+    try:
+        map(int, options.ports)
+        map(int, options.tunnel_ports)
+    except ValueError:
+        sys.stderr.write("Error: Ports must be integers\n\n")
+        print "Help with options -t and -p:"
+        print "  All ports must be integers. You used:"
+        if options.ports:
+            print "    -p", " -p ".join(options.ports)
+        if options.tunnel_ports:
+            print "    -t", " -t ".join(options.tunnel_ports)
+        raise SystemExit(1)
 
     # default to 80 and default to matching host ports with tunnel ports
     if not options.ports and not options.tunnel_ports:
