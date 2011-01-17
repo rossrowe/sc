@@ -17,14 +17,13 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
+import org.bouncycastle.util.encoders.Base64;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.python.core.PyInteger;
 import org.python.core.PyList;
 import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
-
-import com.saucelabs.sauceconnect.proxy.Base64Encoder;
 
 public class SauceConnect {
     private static PythonInterpreter interpreter = null;
@@ -206,7 +205,7 @@ public class SauceConnect {
         try {
             URL restEndpoint = new URL(restURL+"/v1/"+username+"/defaults");
             String auth = username + ":" + password;
-            auth = "Basic " + new Base64Encoder().encode(auth.getBytes());
+            auth = "Basic " + new String(Base64.encode(auth.getBytes()));
             URLConnection connection = restEndpoint.openConnection();
             connection.setRequestProperty("Authorization", auth);
             InputStream data = connection.getInputStream();
