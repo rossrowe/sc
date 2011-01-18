@@ -848,7 +848,9 @@ def _get_loggable_options(options):
     return ops
 
 
-def run(options, dependency_versions=None, setup_signal_handler=setup_signal_handler, reverse_ssh=ReverseSSH):
+def run(options, dependency_versions=None,
+        setup_signal_handler=setup_signal_handler,
+        reverse_ssh=ReverseSSH, do_check_version=True):
     if not options.quiet:
         print ".---------------------------------------------------."
         print "|  Have questions or need help with Sauce Connect?  |"
@@ -857,7 +859,8 @@ def run(options, dependency_versions=None, setup_signal_handler=setup_signal_han
     logger.info("/ Starting \\")
     logger.info('Please wait for "You may start your tests" to start your tests.')
     logger.info("%s" % DISPLAY_VERSION)
-    check_version()
+    if do_check_version:
+        check_version()
 
     metadata = dict(ScriptName=NAME,
                     ScriptRelease=RELEASE,

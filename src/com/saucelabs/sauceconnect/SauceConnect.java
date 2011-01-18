@@ -41,6 +41,7 @@ import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
 
 public class SauceConnect {
+    private static final int RELEASE = 1;
     private static PythonInterpreter interpreter = null;
     private static SauceProxy proxy = null;
     
@@ -168,6 +169,7 @@ public class SauceConnect {
                 System.exit(3);
             }
         } else {
+            versionCheck();
             final CommandLine parsedArgs = parseArgs(args);;
             String domain = "sauce-connect.proxy";
 
@@ -218,7 +220,7 @@ public class SauceConnect {
                 getInterpreter().exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
                 interpreter.exec("sauce_connect.run(options,"
                         + "setup_signal_handler=setup_java_signal_handler,"
-                        + "reverse_ssh=JavaReverseSSH)");
+                        + "reverse_ssh=JavaReverseSSH,do_check_version=False)");
             } catch (Exception e) {
                 // uncomment for debugging:
                 //e.printStackTrace();
@@ -260,6 +262,33 @@ public class SauceConnect {
             e.printStackTrace();
             System.exit(5);
         }
+    }
+    
+    private static void versionCheck() {
+        try {
+            if(!isReleaseCurrent(RELEASE)){
+                System.err.println("** This version of Sauce Connect is outdated.\n" +
+                		"** Please update with http://saucelabs.com/downloads/Sauce_Connect-latest.jar");
+            }
+        } catch(IOException e) {
+            System.err.println("Error checking Sauce Connect version:");
+            e.printStackTrace();
+        } catch(org.json.simple.parser.ParseException e) {
+            System.err.println("Error checking Sauce Connect version:");
+            e.printStackTrace();
+        }
+    }
+    
+    public static boolean isReleaseCurrent(int localRelease) throws IOException, org.json.simple.parser.ParseException {
+        URL versionsURL = new URL("http://saucelabs.com/versions.json");
+        JSONObject versions = (JSONObject) new JSONParser().parse(new InputStreamReader(versionsURL.openStream()));
+        if(!versions.containsKey("Sauce Connect 2")){
+            return false;
+        }
+        JSONObject versionDetails = (JSONObject) versions.get("Sauce Connect 2");
+        String remoteVersion = (String)versionDetails.get("version");
+        int remoteRelease = Integer.valueOf(remoteVersion.substring(remoteVersion.indexOf("-r")+2));
+        return localRelease >= remoteRelease;
     }
 
     public static int getHealthCheckInterval() {
