@@ -1,6 +1,5 @@
 package com.saucelabs.sauceconnect;
 
-import java.awt.EventQueue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -60,6 +59,7 @@ public class SauceConnect {
                     		"this account while tunnel is running.").create());
             
             options.addOption("h", "help", false, "Display this help text");
+            options.addOption("l", "lite", false, null);
         try {
             CommandLineParser parser = new PosixParser();
             CommandLine result = parser.parse(options, args);
@@ -112,62 +112,102 @@ public class SauceConnect {
     }
 
     public static void main(String[] args) {
-        final CommandLine parsedArgs = parseArgs(args);;
-        String domain = "sauce-connect.proxy";
-        
+        boolean lite = false;
+        PyList strippedArgs = new PyList();
 
-        if(parsedArgs.hasOption("proxy-host")) {
-            domain = parsedArgs.getOptionValue("proxy-host");
-        }
-        if(!parsedArgs.hasOption("dont-update-proxy-host")){
-            updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], domain,
-                    parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
-        }
-        getInterpreter().set(
-                "arglist",
-                generateArgsForSauceConnect(parsedArgs.getArgs()[0],
-                        parsedArgs.getArgs()[1], domain, parsedArgs));
-
-        getInterpreter().exec("options = sauce_connect.get_options(arglist)");
-        interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)");
-        PythonLogHandler.install();
-
-        try {
-            proxy = new SauceProxy();
-            proxy.start();
-            interpreter.exec("options.ports = ['"+proxy.getPort()+"']");
-        } catch (Exception e) {
-            System.err.println("Error starting proxy: " + e.getMessage());
-            System.exit(2);
-        }
-        
-        interpreter.exec("tunnel_for_java_to_kill = None");
-        interpreter.exec("def setup_java_signal_handler(tunnel, options):\n"
-                + "  global tunnel_for_java_to_kill\n" + "  tunnel_for_java_to_kill = tunnel\n");
-
-        final Thread mainThread = Thread.currentThread();
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                if(parsedArgs != null && !parsedArgs.hasOption("dont-update-proxy-host")) {
-                    updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], null,
-                            parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
-                }
-                interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)");
-                mainThread.interrupt();
-                interpreter
-                        .exec("sauce_connect.peace_out(tunnel_for_java_to_kill, atexit=True)");
+        for(String s : args){
+            if(s.equals("-l") || s.equals("--lite")){
+                lite = true;
+            } else {
+                strippedArgs.add(new PyString(s));
             }
-        });
+        }
+        if(lite) {
+            getInterpreter().set("arglist", strippedArgs);
+            getInterpreter().exec("options = sauce_connect.get_options(arglist)");
+            interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)");
+            PythonLogHandler.install();
+            interpreter.exec("tunnel_for_java_to_kill = None");
+            interpreter.exec("def setup_java_signal_handler(tunnel, options):\n"
+                    + "  global tunnel_for_java_to_kill\n" + "  tunnel_for_java_to_kill = tunnel\n");
+    
+            final Thread mainThread = Thread.currentThread();
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                public void run() {
+                    interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)");
+                    mainThread.interrupt();
+                    interpreter
+                            .exec("sauce_connect.peace_out(tunnel_for_java_to_kill, atexit=True)");
+                }
+            });
+    
+            try {
+                getInterpreter().exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
+                interpreter.exec("sauce_connect.run(options,"
+                        + "setup_signal_handler=setup_java_signal_handler,"
+                        + "reverse_ssh=JavaReverseSSH)");
+            } catch (Exception e) {
+                // uncomment for debugging:
+                //e.printStackTrace();
+                System.exit(3);
+            }
+        } else {
+            final CommandLine parsedArgs = parseArgs(args);;
+            String domain = "sauce-connect.proxy";
 
-        try {
-            getInterpreter().exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
-            interpreter.exec("sauce_connect.run(options,"
-                    + "setup_signal_handler=setup_java_signal_handler,"
-                    + "reverse_ssh=JavaReverseSSH)");
-        } catch (Exception e) {
-            // uncomment for debugging:
-            //e.printStackTrace();
-            System.exit(3);
+            if(parsedArgs.hasOption("proxy-host")) {
+                domain = parsedArgs.getOptionValue("proxy-host");
+            }
+            if(!parsedArgs.hasOption("dont-update-proxy-host")){
+                updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], domain,
+                        parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
+            }
+            getInterpreter().set(
+                    "arglist",
+                    generateArgsForSauceConnect(parsedArgs.getArgs()[0],
+                            parsedArgs.getArgs()[1], domain, parsedArgs));
+    
+            getInterpreter().exec("options = sauce_connect.get_options(arglist)");
+            interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)");
+            PythonLogHandler.install();
+    
+            try {
+                proxy = new SauceProxy();
+                proxy.start();
+                interpreter.exec("options.ports = ['"+proxy.getPort()+"']");
+            } catch (Exception e) {
+                System.err.println("Error starting proxy: " + e.getMessage());
+                System.exit(2);
+            }
+            
+            interpreter.exec("tunnel_for_java_to_kill = None");
+            interpreter.exec("def setup_java_signal_handler(tunnel, options):\n"
+                    + "  global tunnel_for_java_to_kill\n" + "  tunnel_for_java_to_kill = tunnel\n");
+    
+            final Thread mainThread = Thread.currentThread();
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                public void run() {
+                    if(parsedArgs != null && !parsedArgs.hasOption("dont-update-proxy-host")) {
+                        updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], null,
+                                parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
+                    }
+                    interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)");
+                    mainThread.interrupt();
+                    interpreter
+                            .exec("sauce_connect.peace_out(tunnel_for_java_to_kill, atexit=True)");
+                }
+            });
+    
+            try {
+                getInterpreter().exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
+                interpreter.exec("sauce_connect.run(options,"
+                        + "setup_signal_handler=setup_java_signal_handler,"
+                        + "reverse_ssh=JavaReverseSSH)");
+            } catch (Exception e) {
+                // uncomment for debugging:
+                //e.printStackTrace();
+                System.exit(3);
+            }
         }
     }
 
