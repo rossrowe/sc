@@ -1,5 +1,8 @@
 /*
+ * THIS FILE HAS BEEN MODIFIED FROM ITS ORIGINAL SOURCE BY Sauce Labs, Inc
+ * 
  * Copyright 2009 Alan Kennedy
+ * Copyright 2011 Sauce Labs, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); 
  * you may not use this file except in compliance with the License. 
@@ -125,8 +128,10 @@ public class JysonEncoder
 	{
 		if (py_obj instanceof PyString)
 			append_json_string_repr(buf, ((PyString)py_obj).toString());
-		else if (py_obj instanceof PyInteger)
-			 buf.append(Integer.toString(((PyInteger)py_obj).getValue()));
+        else if (py_obj instanceof PyBoolean)
+            buf.append(py_obj.toString().toLowerCase());
+        else if (py_obj instanceof PyInteger)
+            buf.append(Integer.toString(((PyInteger)py_obj).getValue()));
 		else if (py_obj instanceof PyLong)
 			{
 			String repr = ((PyLong)py_obj).__repr__().toString();

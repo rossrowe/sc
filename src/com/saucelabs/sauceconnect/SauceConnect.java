@@ -76,6 +76,7 @@ public class SauceConnect {
                     		"this account while tunnel is running.").create());
             
             options.addOption("h", "help", false, "Display this help text");
+            options.addOption("b", "boost-mode", false, null);
             options.addOption("l", "lite", false, null);
         try {
             CommandLineParser parser = new PosixParser();
@@ -122,6 +123,9 @@ public class SauceConnect {
             if (options.hasOption('f')) {
                 args.add(new PyString("--readyfile"));
                 args.add(new PyString(options.getOptionValue('f')));
+            }
+            if (options.hasOption("boost-mode")) {
+                args.add(new PyString("-b"));
             }
         }
 
@@ -177,7 +181,11 @@ public class SauceConnect {
                 domain = parsedArgs.getOptionValue("proxy-host");
             }
             if(!parsedArgs.hasOption("dont-update-proxy-host")){
-                updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], domain,
+                int port = 80;
+                if(parsedArgs.hasOption("boost-mode")){
+                    port = 33128;
+                }
+                updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], domain, port,
                         parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
             }
             getInterpreter().set(
@@ -206,7 +214,7 @@ public class SauceConnect {
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 public void run() {
                     if(parsedArgs != null && !parsedArgs.hasOption("dont-update-proxy-host")) {
-                        updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], null,
+                        updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], null, 0,
                                 parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
                     }
                     interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)");
@@ -230,7 +238,7 @@ public class SauceConnect {
     }
 
     @SuppressWarnings("unchecked")
-    private static void updateDefaultProxyHost(String username, String password, String proxyHost, String restURL) {
+    private static void updateDefaultProxyHost(String username, String password, String proxyHost, int proxyPort, String restURL) {
         try {
             URL restEndpoint = new URL(restURL+"/v1/"+username+"/defaults");
             String auth = username + ":" + password;
@@ -241,7 +249,7 @@ public class SauceConnect {
             JSONParser parser = new JSONParser();
             JSONObject currentDefaults = (JSONObject)parser.parse(new InputStreamReader(data));
             if(proxyHost != null) {
-                currentDefaults.put("proxy-host", proxyHost);
+                currentDefaults.put("proxy-host", proxyHost+":"+proxyPort);
             } else {
                 currentDefaults.remove("proxy-host");
             }
