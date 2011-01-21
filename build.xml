@@ -24,9 +24,8 @@
     </javac>
   </target>
 
-  <target name="dist" depends="compile"
-        description="generate the distribution" >
-    <!-- Create the distribution directory -->
+  <target name="jar" depends="compile"
+        description="build the standalone jar" >
     <mkdir dir="${dist}"/>
 
     <taskdef name="jarjar" classname="com.tonicsystems.jarjar.JarJarTask"
@@ -48,6 +47,14 @@
         </manifest>
     </jarjar>
    </target>
+
+   <target name="release" depends="jar"
+     description="Build a zip suitable for release">
+    <zip zipfile="${dist}/Sauce_Connect.zip">
+      <fileset dir="." includes="license.html,NOTICE.txt"/>
+      <fileset dir="${dist}" includes="Sauce_Connect.jar"/>
+    </zip>
+  </target>
 
 
   <target name="clean"
