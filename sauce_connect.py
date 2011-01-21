@@ -35,7 +35,15 @@ from functools import wraps
 try:
     import json
 except ImportError:
-    import simplejson as json  # Python 2.5 dependency
+    try:
+        import simplejson as json  # Python 2.5 dependency
+    except ImportError:
+        import com.xhaus.jyson.JysonCodec as json
+
+try:
+    from java.lang import InterruptedException
+except ImportError:
+    class InterruptedException(Exception): pass
 
 NAME = "sauce_connect"
 RELEASE = 26
@@ -58,6 +66,7 @@ SIGNALS_RECV_MAX = 4  # used with --allow-unclean-exit
 is_windows = platform.system().lower() == "windows"
 is_openbsd = platform.system().lower() == "openbsd"
 logger = logging.getLogger(NAME)
+fileout = None
 
 
 class DeleteRequest(urllib2.Request):
@@ -91,11 +100,12 @@ class TunnelMachine(object):
 
     _host_search = re.compile("//([^/]+)").search
 
-    def __init__(self, rest_url, user, password, domains, ssh_port, metadata=None):
+    def __init__(self, rest_url, user, password, domains, ssh_port, boost_mode, metadata=None):
         self.user = user
         self.password = password
         self.domains = set(domains)
         self.ssh_port = ssh_port
+        self.boost_mode = boost_mode
         self.metadata = metadata or dict()
 
         self.reverse_ssh = None
@@ -193,7 +203,8 @@ class TunnelMachine(object):
         headers = {"Content-Type": "application/json"}
         data = json.dumps(dict(DomainNames=list(self.domains),
                                Metadata=self.metadata,
-                               SSHPort=self.ssh_port))
+                               SSHPort=self.ssh_port,
+                               UseCachingProxy=self.boost_mode))
         req = urllib2.Request(url=self.base_url, headers=headers, data=data)
         doc = self._get_doc(req)
         if doc.get('error'):
@@ -300,6 +311,7 @@ class HealthChecker(object):
 
     def check(self):
         now = time.time()
+        all_good = True
         for port in self.ports:
             ping_time = self._tcp_ping(port)
             if ping_time is not None:
@@ -329,12 +341,14 @@ class HealthChecker(object):
                 continue
 
             # TCP connection failed
+            all_good = False
             self.last_tcp_ping[port] = ping_time
             logger.warning(self.fail_msg % dict(host=self.host, port=port))
             if now - self.last_tcp_connect[port] > HEALTH_CHECK_FAIL:
                 raise HealthCheckFail(
                     "Could not connect to %s:%s for over %s seconds"
                     % (self.host, port, HEALTH_CHECK_FAIL))
+        return all_good
 
 
 class ReverseSSHError(Exception):
@@ -415,8 +429,10 @@ class ReverseSSH(object):
         if self.debug:
             self.stdout_f = tempfile.TemporaryFile()
         else:
-            self.stdout_f = open(os.devnull)
+            self.stdout_f = open(os.devnull, 'wb')
         self.stderr_f = tempfile.TemporaryFile()
+        print self.stdout_f
+        print self.stderr_f
         self.proc = subprocess.Popen(
             cmd, shell=True, stdout=self.stdout_f, stderr=self.stderr_f)
         self.tunnel.reverse_ssh = self  # BUG: circular ref
@@ -592,6 +608,7 @@ def check_version():
 
 
 def setup_logging(logfile=None, quiet=False):
+    global fileout
     logger.setLevel(logging.DEBUG)
 
     if not quiet:
@@ -652,7 +669,7 @@ def check_domains(domains):
             raise SystemExit(1)
 
 
-def get_options():
+def get_options(arglist=sys.argv[1:]):
     usage = """
 Usage: %(name)s -u <user> -k <api_key> -s <webserver> -d <domain> [options]
 
@@ -715,6 +732,8 @@ Performance tip:
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--ssh-port", default=22, type="int",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("-b", "--boost-mode", default=False, action="store_true",
+                  help=optparse.SUPPRESS_HELP)
     op.add_option_group(og)
 
     og = optparse.OptionGroup(op, "Script debugging options")
@@ -724,7 +743,7 @@ Performance tip:
                   help="Threshold for logging latency (ms) [%default]")
     op.add_option_group(og)
 
-    (options, args) = op.parse_args()
+    (options, args) = op.parse_args(arglist)
 
     # check ports are numbers
     try:
@@ -833,7 +852,9 @@ def _get_loggable_options(options):
     return ops
 
 
-def run(options, dependency_versions=None):
+def run(options, dependency_versions=None,
+        setup_signal_handler=setup_signal_handler,
+        reverse_ssh=ReverseSSH, do_check_version=True):
     if not options.quiet:
         print ".---------------------------------------------------."
         print "|  Have questions or need help with Sauce Connect?  |"
@@ -842,7 +863,8 @@ def run(options, dependency_versions=None):
     logger.info("/ Starting \\")
     logger.info('Please wait for "You may start your tests" to start your tests.')
     logger.info("%s" % DISPLAY_VERSION)
-    check_version()
+    if do_check_version:
+        check_version()
 
     metadata = dict(ScriptName=NAME,
                     ScriptRelease=RELEASE,
@@ -873,7 +895,8 @@ def run(options, dependency_versions=None):
         try:
             tunnel = TunnelMachine(options.rest_url, options.user,
                                    options.api_key, options.domains,
-                                   options.ssh_port, metadata)
+                                   options.ssh_port, bool(options.boost_mode),
+                                   metadata)
         except TunnelMachineError, e:
             logger.error(e)
             peace_out(returncode=1)  # exits
@@ -891,7 +914,7 @@ def run(options, dependency_versions=None):
             logger.info("** Please contact help@saucelabs.com")
             peace_out(tunnel, returncode=1)  # exits
 
-    ssh = ReverseSSH(tunnel=tunnel, host=options.host,
+    ssh = reverse_ssh(tunnel=tunnel, host=options.host,
                      ports=options.ports, tunnel_ports=options.tunnel_ports,
                      ssh_port=options.ssh_port,
                      use_ssh_config=options.use_ssh_config,
@@ -900,6 +923,8 @@ def run(options, dependency_versions=None):
         ssh.run(options.readyfile)
     except (ReverseSSHError, TunnelMachineError), e:
         logger.error(e)
+    except InterruptedException, e:
+        return
     peace_out(tunnel)  # exits
 
 
