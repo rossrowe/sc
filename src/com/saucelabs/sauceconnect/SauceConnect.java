@@ -84,7 +84,7 @@ public class SauceConnect {
             CommandLine result = parser.parse(options, args);
             if(result.hasOption("help")){
                 HelpFormatter help = new HelpFormatter();
-                help.printHelp("java -jar Sauce_Connect.jar USERNAME API_KEY [OPTIONS]", options);
+                help.printHelp("java -jar Sauce-Connect.jar USERNAME API_KEY [OPTIONS]", options);
                 System.exit(0);
             }
             if(result.hasOption("version")){
@@ -102,7 +102,7 @@ public class SauceConnect {
             System.err.println(e.getMessage());
             System.err.println();
             HelpFormatter help = new HelpFormatter();
-            help.printHelp("java -jar Sauce_Connect.jar USERNAME API_KEY [OPTIONS]", options);
+            help.printHelp("java -jar Sauce-Connect.jar USERNAME API_KEY [OPTIONS]", options);
             System.exit(1);
             return null;
         }

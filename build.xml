@@ -30,7 +30,7 @@
 
     <taskdef name="jarjar" classname="com.tonicsystems.jarjar.JarJarTask"
         classpath="lib/jarjar-1.0.jar"/>
-    <jarjar jarfile="${dist}/Sauce_Connect.jar" basedir="${build}">
+    <jarjar jarfile="${dist}/Sauce-Connect.jar" basedir="${build}">
         <fileset dir="${build}"/>
         <fileset dir="." includes="sslSupport/*,sauce_connect.py"/>
         <zipfileset src="lib/bcprov-jdk15-135.jar" excludes="META-INF/BCKEY.*"/>
@@ -50,9 +50,9 @@
 
    <target name="release" depends="jar"
      description="Build a zip suitable for release">
-    <zip zipfile="${dist}/Sauce_Connect.zip">
+    <zip zipfile="${dist}/Sauce-Connect.zip">
       <fileset dir="." includes="license.html,NOTICE.txt"/>
-      <fileset dir="${dist}" includes="Sauce_Connect.jar"/>
+      <fileset dir="${dist}" includes="Sauce-Connect.jar"/>
     </zip>
   </target>
 
