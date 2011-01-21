@@ -41,7 +41,7 @@ import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
 
 public class SauceConnect {
-    private static final int RELEASE = 1;
+    private static final int RELEASE = 2;
     private static PythonInterpreter interpreter = null;
     private static SauceProxy proxy = null;
     
@@ -76,6 +76,7 @@ public class SauceConnect {
                     		"this account while tunnel is running.").create());
             
             options.addOption("h", "help", false, "Display this help text");
+            options.addOption("v", "version", false, "Print the version and exit");
             options.addOption("b", "boost-mode", false, null);
             options.addOption("l", "lite", false, null);
         try {
@@ -84,6 +85,10 @@ public class SauceConnect {
             if(result.hasOption("help")){
                 HelpFormatter help = new HelpFormatter();
                 help.printHelp("java -jar Sauce_Connect.jar USERNAME API_KEY [OPTIONS]", options);
+                System.exit(0);
+            }
+            if(result.hasOption("version")){
+                System.out.println("Version: Sauce Connect 2.0-r"+RELEASE);
                 System.exit(0);
             }
             if(result.getArgs().length == 0){
@@ -274,9 +279,10 @@ public class SauceConnect {
     
     private static void versionCheck() {
         try {
-            if(!isReleaseCurrent(RELEASE)){
+            String downloadURL = getDownloadURL(RELEASE);
+            if(downloadURL != null){
                 System.err.println("** This version of Sauce Connect is outdated.\n" +
-                		"** Please update with http://saucelabs.com/downloads/Sauce_Connect-latest.jar");
+				"** Please update with "+downloadURL);
             }
         } catch(IOException e) {
             System.err.println("Error checking Sauce Connect version:");
@@ -287,16 +293,27 @@ public class SauceConnect {
         }
     }
     
-    public static boolean isReleaseCurrent(int localRelease) throws IOException, org.json.simple.parser.ParseException {
+    /**
+     * Get the download URL for the newer release of Sauce Connect if this version is outdated.
+     * @param localRelease
+     * @return The download URL or null if the release is current.
+     * @throws IOException
+     * @throws org.json.simple.parser.ParseException
+     */
+    public static String getDownloadURL(int localRelease) throws IOException, org.json.simple.parser.ParseException {
         URL versionsURL = new URL("http://saucelabs.com/versions.json");
         JSONObject versions = (JSONObject) new JSONParser().parse(new InputStreamReader(versionsURL.openStream()));
         if(!versions.containsKey("Sauce Connect 2")){
-            return false;
+            return "http://saucelabs.com/downloads/Sauce-Connect-2-latest.zip";
         }
         JSONObject versionDetails = (JSONObject) versions.get("Sauce Connect 2");
         String remoteVersion = (String)versionDetails.get("version");
         int remoteRelease = Integer.valueOf(remoteVersion.substring(remoteVersion.indexOf("-r")+2));
-        return localRelease >= remoteRelease;
+        if(localRelease < remoteRelease) {
+            return (String)versionDetails.get("download_url");
+        } else {
+            return null;
+        }
     }
 
     public static int getHealthCheckInterval() {
