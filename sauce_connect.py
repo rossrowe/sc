@@ -3,6 +3,8 @@
 from __future__ import with_statement
 
 # TODO:
+#   * Allow using system installed Plink/Python in favor of bundled binaries
+#     http://saucelabs.com/forums/viewtopic.php?pid=1081
 #   * Move to REST API v1
 #   * windows: SSH link healthcheck (PuTTY session file hack?)
 #   * Daemonizing
