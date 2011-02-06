@@ -433,8 +433,6 @@ class ReverseSSH(object):
         else:
             self.stdout_f = open(os.devnull, 'wb')
         self.stderr_f = tempfile.TemporaryFile()
-        print self.stdout_f
-        print self.stderr_f
         self.proc = subprocess.Popen(
             cmd, shell=True, stdout=self.stdout_f, stderr=self.stderr_f)
         self.tunnel.reverse_ssh = self  # BUG: circular ref
