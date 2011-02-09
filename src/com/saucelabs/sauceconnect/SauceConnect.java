@@ -215,7 +215,6 @@ public class SauceConnect {
             interpreter.exec("def setup_java_signal_handler(tunnel, options):\n"
                     + "  global tunnel_for_java_to_kill\n" + "  tunnel_for_java_to_kill = tunnel\n");
     
-            final Thread mainThread = Thread.currentThread();
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 public void run() {
                     if(parsedArgs != null && !parsedArgs.hasOption("dont-update-proxy-host")) {
@@ -223,7 +222,6 @@ public class SauceConnect {
                                 parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
                     }
                     interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)");
-                    mainThread.interrupt();
                     interpreter
                             .exec("sauce_connect.peace_out(tunnel_for_java_to_kill, atexit=True)");
                 }

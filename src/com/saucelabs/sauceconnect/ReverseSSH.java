@@ -24,8 +24,11 @@ import org.mortbay.log.LogFactory;
 import org.python.core.*;
 
 import ch.ethz.ssh2.Connection;
+import ch.ethz.ssh2.Session;
 
 public class ReverseSSH {
+    private static final int MAX_RECONNECT_ATTEMPTS = 3;
+
     private static Log log = LogFactory.getLog(ReverseSSH.class);
 
     /* named arguments to constructor cause fields to be set */
@@ -51,6 +54,33 @@ public class ReverseSSH {
             this.readyfile.deleteOnExit();
         }
         log.info("Starting SSH connection...");
+        connect();
+        if (this.readyfile != null) {
+            this.readyfile.createNewFile();
+        }
+        HealthChecker forwarded_health = new HealthChecker(this.host, ports);
+        int health_check_interval = SauceConnect.getHealthCheckInterval();
+        for (;;) {
+            forwarded_health.check();
+            long start = System.currentTimeMillis();
+            Timeout t = new Timeout(health_check_interval){
+                @Override
+                public void longRunningTask() throws Exception {
+                    Session s = tunnelConnection.openSession();
+                    s.close();
+                }
+            };
+            t.go();
+            if(t.isSuccess()){
+                Thread.sleep(health_check_interval - (System.currentTimeMillis()-start));
+            }
+            else {
+                reconnect();
+            }
+        }
+    }
+    
+    private void connect() throws IOException {
         String host = getTunnelSetting("host");
         String user = getTunnelSetting("user");
         String password = getTunnelSetting("password");
@@ -64,20 +94,28 @@ public class ReverseSSH {
                     localPort);
         }
         log.info("SSH Connected. You may start your tests.");
-        if (this.readyfile != null) {
-            this.readyfile.createNewFile();
+    }
+
+    private void reconnect() throws InterruptedException {
+        log.info("SSH connection failed. Re-connecting ..");
+        for(int attempts = 0; attempts < MAX_RECONNECT_ATTEMPTS; attempts++){
+            Thread.sleep(3000);
+            Timeout connect = new Timeout(10000) {
+                @Override
+                public void longRunningTask() throws Exception {
+                    connect();
+                }
+            };
+            connect.go();
+            if(connect.isSuccess()){
+                log.info("SSH successfully re-connected");
+                return;
+            } else {
+                log.info("Re-connect failed. Trying again ..");
+            }
         }
-        HealthChecker forwarded_health = new HealthChecker(this.host, ports);
-        HealthChecker tunnel_health = new HealthChecker(host,
-                new String[] { String.valueOf(this.ssh_port) },
-                "!! Your tests may fail because your network cannot get to the " + "tunnel host ("
-                        + host + ":" + this.ssh_port + ").");
-        int health_check_interval = SauceConnect.getHealthCheckInterval();
-        for (;;) {
-            forwarded_health.check();
-            tunnel_health.check();
-            Thread.sleep(health_check_interval);
-        }
+        log.info("Unable to re-establish connection to Sauce Labs");
+        throw new RuntimeException("Unable to re-establish connection to Sauce Labs");
     }
 
     public void stop() {
