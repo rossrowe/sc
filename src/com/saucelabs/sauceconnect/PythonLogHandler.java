@@ -16,6 +16,8 @@
 
 package com.saucelabs.sauceconnect;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.logging.Handler;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
@@ -39,6 +41,11 @@ public class PythonLogHandler extends Handler {
             logger = SauceConnect.getInterpreter().eval("sauce_connect.logger");
         }
         logger.invoke("info", new PyString(arg0.getMessage()));
+        if(arg0.getThrown() != null){
+            StringWriter s = new StringWriter();
+            arg0.getThrown().printStackTrace(new PrintWriter(s));
+            logger.invoke("debug", new PyString(s.toString()));
+        }
     }
     
     public static void install(){
