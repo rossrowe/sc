@@ -866,8 +866,8 @@ def run(options, dependency_versions=None,
         print "-----------------------------------------------------"
     logger.info("/ Starting \\")
     logger.info('Please wait for "You may start your tests" to start your tests.')
-    logger.info("%s" % DISPLAY_VERSION)
     if do_check_version:
+        logger.info("%s" % DISPLAY_VERSION)
         check_version()
 
     metadata = dict(ScriptName=NAME,
