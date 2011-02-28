@@ -32,7 +32,7 @@
         classpath="lib/jarjar-1.0.jar"/>
     <jarjar jarfile="${dist}/Sauce-Connect.jar" basedir="${build}">
         <fileset dir="${build}"/>
-        <fileset dir="." includes="sslSupport/*,sauce_connect.py"/>
+        <fileset dir="." includes="sslSupport/*,sauce_connect.py,java_urllib2.py"/>
         <zipfileset src="lib/bcprov-jdk15-135.jar" excludes="META-INF/BCKEY.*"/>
         <zipfileset src="lib/commons-logging-1.1.1.jar"/>
         <zipfileset src="lib/commons-cli-1.2.jar"/>

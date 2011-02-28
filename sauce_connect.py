@@ -22,7 +22,6 @@ import logging.handlers
 import signal
 import atexit
 import httplib
-import urllib2
 import subprocess
 import socket
 import time
@@ -33,6 +32,11 @@ from base64 import b64encode
 from collections import defaultdict
 from contextlib import closing
 from functools import wraps
+
+try:
+    import java_urllib2 as urllib2
+except ImportError:
+    import urllib2
 
 try:
     import json
