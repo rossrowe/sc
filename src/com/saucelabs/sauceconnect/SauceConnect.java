@@ -41,7 +41,7 @@ import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
 
 public class SauceConnect {
-    private static final int RELEASE = 4;
+    private static final int RELEASE = 5;
     private static PythonInterpreter interpreter = null;
     private static SauceProxy proxy = null;
     
@@ -120,6 +120,7 @@ public class SauceConnect {
         args.add(new PyString("127.0.0.1"));
         args.add(new PyString("--ssh-port"));
         args.add(new PyString("443"));
+        args.add(new PyString("-b"));
         if (options != null) {
             if (options.hasOption('x')) {
                 args.add(new PyString("--rest-url"));
@@ -128,9 +129,6 @@ public class SauceConnect {
             if (options.hasOption('f')) {
                 args.add(new PyString("--readyfile"));
                 args.add(new PyString(options.getOptionValue('f')));
-            }
-            if (options.hasOption("boost-mode")) {
-                args.add(new PyString("-b"));
             }
         }
 
