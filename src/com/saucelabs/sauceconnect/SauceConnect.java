@@ -41,7 +41,7 @@ import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
 
 public class SauceConnect {
-    private static final int RELEASE = 5;
+    private static final int RELEASE = 6;
     private static PythonInterpreter interpreter = null;
     private static SauceProxy proxy = null;
     
@@ -184,10 +184,7 @@ public class SauceConnect {
                 domain = parsedArgs.getOptionValue("proxy-host");
             }
             if(!parsedArgs.hasOption("dont-update-proxy-host")){
-                int port = 80;
-                if(parsedArgs.hasOption("boost-mode")){
-                    port = 33128;
-                }
+                int port = 33128;
                 updateDefaultProxyHost(parsedArgs.getArgs()[0], parsedArgs.getArgs()[1], domain, port,
                         parsedArgs.getOptionValue("rest-url", "http://saucelabs.com/rest"));
             }
