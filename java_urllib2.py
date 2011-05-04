@@ -51,7 +51,8 @@ class Opener(object):
             raise
 
 def urlopen(url):
-    return Response("")
+    opener = Opener()
+    return opener.open(url)
 
 def build_opener():
     return Opener()

@@ -41,7 +41,7 @@ import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
 
 public class SauceConnect {
-    private static final int RELEASE = 6;
+    private static final int RELEASE = 7;
     private static PythonInterpreter interpreter = null;
     private static SauceProxy proxy = null;
     
