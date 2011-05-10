@@ -28,8 +28,8 @@ public class SauceProxy {
     public SauceProxy() {
         server = new Server();
         SocketListener socketListener = new SocketListener();
-        socketListener.setMaxIdleTimeMs(60000);
-        socketListener.setMaxThreads(512);
+        socketListener.setMaxIdleTimeMs(20000);
+        socketListener.setMaxThreads(256);
         socketListener.setPort(0);
         server.addListener(socketListener);
 
