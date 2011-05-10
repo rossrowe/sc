@@ -78,6 +78,7 @@ public class SauceConnect {
             options.addOption("h", "help", false, "Display this help text");
             options.addOption("v", "version", false, "Print the version and exit");
             options.addOption("b", "boost-mode", false, null);
+            options.addOption("d", "debug", false, "Enable verbose debugging");
             options.addOption("l", "lite", false, null);
         try {
             CommandLineParser parser = new PosixParser();
@@ -177,7 +178,7 @@ public class SauceConnect {
             }
         } else {
             versionCheck();
-            final CommandLine parsedArgs = parseArgs(args);;
+            final CommandLine parsedArgs = parseArgs(args);
             String domain = "sauce-connect.proxy";
 
             if(parsedArgs.hasOption("proxy-host")) {
@@ -228,8 +229,9 @@ public class SauceConnect {
                         + "setup_signal_handler=setup_java_signal_handler,"
                         + "reverse_ssh=JavaReverseSSH,do_check_version=False)");
             } catch (Exception e) {
-                // uncomment for debugging:
-                //e.printStackTrace();
+                if(parsedArgs.hasOption("d")) {
+                    e.printStackTrace();
+                }
                 System.exit(3);
             }
         }
