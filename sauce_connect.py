@@ -435,7 +435,7 @@ class ReverseSSH(object):
         if self.debug:
             self.stdout_f = tempfile.TemporaryFile()
         else:
-            self.stdout_f = open(os.devnull, 'wb')
+            self.stdout_f = open(os.devnull, 'w+b')
         self.stderr_f = tempfile.TemporaryFile()
         self.proc = subprocess.Popen(
             cmd, shell=True, stdout=self.stdout_f, stderr=self.stderr_f)
