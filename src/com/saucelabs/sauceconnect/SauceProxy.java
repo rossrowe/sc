@@ -16,37 +16,57 @@
 
 package com.saucelabs.sauceconnect;
 
-import org.mortbay.http.HttpContext;
-import org.mortbay.http.SocketListener;
-import org.mortbay.jetty.Server;
+//import com.saucelabs.sauceconnect.proxy.ProxyHandler;
+//import org.mortbay.http.HttpContext;
+//import org.mortbay.http.SocketListener;
+//import org.mortbay.jetty.Server;
 
-import com.saucelabs.sauceconnect.proxy.ProxyHandler;
+import com.saucelabs.sauceconnect.proxy.Jetty7ProxyHandler;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.ConnectHandler;
+import org.eclipse.jetty.server.nio.SelectChannelConnector;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
+
 
 public class SauceProxy {
     private Server server;
 
     public SauceProxy() {
         server = new Server();
-        SocketListener socketListener = new SocketListener();
-        socketListener.setMaxIdleTimeMs(20000);
-        socketListener.setMaxThreads(256);
-        socketListener.setPort(0);
-        server.addListener(socketListener);
+        SelectChannelConnector connector = new SelectChannelConnector();
+//        SocketConnector connector = new SocketConnector();
+        connector.setPort(0);
+        connector.setMaxIdleTime(20000);
+        connector.setThreadPool(new QueuedThreadPool(256));
 
-        HttpContext root;
-        root = new HttpContext();
-        root.setContextPath("/");
-        ProxyHandler proxyHandler = new ProxyHandler(true, false);
-        root.addHandler(proxyHandler);
-        server.addContext(root);
+        server.addConnector(connector);
+
+
+        ConnectHandler handler = new Jetty7ProxyHandler(true);
+        server.setHandler(handler);
+
+//        SocketListener socketListener = new SocketListener();
+//        socketListener.setMaxIdleTimeMs(20000);
+//        socketListener.setMaxThreads(256);
+//        socketListener.setPort(0);
+//        server.addListener(socketListener);
+//
+//        HttpContext root;
+//        root = new HttpContext();
+//        root.setContextPath("/");
+//        ProxyHandler proxyHandler = new ProxyHandler(true, false);
+//        root.addHandler(proxyHandler);
+//        server.addContext(root);
     }
-    
+
     public int getPort() {
-        return this.server.getListeners()[0].getPort();
+//        return this.server.getListeners()[0].getPort();
+        return this.server.getConnectors()[0].getLocalPort();
     }
 
     public void start() throws Exception {
         this.server.start();
+//        this.server.join();
     }
 
     public static void main(String[] args) throws Exception {

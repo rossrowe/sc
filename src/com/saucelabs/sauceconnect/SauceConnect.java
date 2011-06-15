@@ -137,6 +137,8 @@ public class SauceConnect {
         args.add(new PyString(domain));
         args.add(new PyString("-s"));
         args.add(new PyString("127.0.0.1"));
+        args.add(new PyString("-p"));
+        args.add(new PyString("80"));
         args.add(new PyString("--ssh-port"));
         args.add(new PyString("443"));
         args.add(new PyString("-b"));
