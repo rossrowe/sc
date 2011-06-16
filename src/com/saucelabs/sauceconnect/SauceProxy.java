@@ -31,6 +31,10 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 public class SauceProxy {
     private Server server;
 
+    /**
+     * Instantiates a new {@link Server) with a {@link SelectChannelConnector} instance as the connector
+     * and a {@link com.saucelabs.sauceconnect.proxy.Jetty7ProxyHandler} instance as the handler. 
+     */
     public SauceProxy() {
         server = new Server();
         SelectChannelConnector connector = new SelectChannelConnector();
@@ -41,10 +45,10 @@ public class SauceProxy {
 
         server.addConnector(connector);
 
-
         ConnectHandler handler = new Jetty7ProxyHandler(true);
         server.setHandler(handler);
 
+        //Jetty 5 logic
 //        SocketListener socketListener = new SocketListener();
 //        socketListener.setMaxIdleTimeMs(20000);
 //        socketListener.setMaxThreads(256);
@@ -59,6 +63,10 @@ public class SauceProxy {
 //        server.addContext(root);
     }
 
+    /**
+     * Returns the local port of the first connector for the server.
+     * @return
+     */
     public int getPort() {
 //        return this.server.getListeners()[0].getPort();
         return this.server.getConnectors()[0].getLocalPort();
@@ -66,7 +74,6 @@ public class SauceProxy {
 
     public void start() throws Exception {
         this.server.start();
-//        this.server.join();
     }
 
     public static void main(String[] args) throws Exception {

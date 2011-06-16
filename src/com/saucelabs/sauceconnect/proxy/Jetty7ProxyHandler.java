@@ -37,6 +37,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
+ * Reimplementation of the logic contained in {@link com.saucelabs.sauceconnect.proxy.ProxyHandler} to support
+ * <a href="http://www.eclipse.org/jetty/">Jetty version 7</a>.  This is required so that the Sauce Connect library
+ * can be deployed with the Bamboo Sauce OnDemand plugin (Bamboo comes with Jetty 7 pre-installed).
+ *  
  * @author Ross Rowe
  */
 public class Jetty7ProxyHandler extends ConnectHandler {

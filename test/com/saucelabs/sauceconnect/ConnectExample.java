@@ -6,6 +6,7 @@ import org.apache.commons.httpclient.ProxyClient;
 import java.net.Socket;
 
 /**
+ * Simple class that uses Apache HTTP Commons (version 3) to perform a HTTP CONNECT operation. 
  * @author Ross Rowe
  */
 public class ConnectExample {
