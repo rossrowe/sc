@@ -474,7 +474,7 @@ public class Jetty7ProxyHandler extends ConnectHandler {
                     }
                     catch (Exception e) {
                         e.printStackTrace();
-                        throw new IOException(e);
+                        throw new IOException("test");
                     }
                 }
                 _sslMap.put(host, connector);

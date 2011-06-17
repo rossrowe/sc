@@ -7,7 +7,9 @@
     <version>2.0r4</version>
     <packaging>jar</packaging>
     <name>selenium-connect library</name>
-    <description>Sauce Connect 2</description>
+    <description>Maven build for Sauce Connect 2, primarily to be used to build a Jar for use with the
+        Bamboo Sauce OnDemand plugin
+    </description>
     <scm>
         <connection>
             scm:git:git://github.com/saucelabs/sauce-connect.git
@@ -21,12 +23,6 @@
     </scm>
 
     <dependencies>
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>servlet-api</artifactId>
-            <version>2.4</version>
-            <scope>provided</scope>
-        </dependency>
         <dependency>
             <groupId>bouncycastle</groupId>
             <artifactId>bcprov-jdk15</artifactId>
@@ -42,6 +38,11 @@
             <artifactId>commons-logging</artifactId>
             <version>1.1.1</version>
         </dependency>
+        <dependency>
+            <groupId>com.googlecode.json-simple</groupId>
+            <artifactId>json-simple</artifactId>
+            <version>1.1</version>
+        </dependency>
         <!-- build251beta1 doesn't look like it's available in a Maven repo, must be installed manually -->
         <dependency>
             <groupId>ch.ethz.ganymed</groupId>
@@ -53,10 +54,21 @@
             <artifactId>ganymed-ssh2</artifactId>
             <version>build251beta1</version>
         </dependency>
+        <!-- Provided jars to be excluded from the built jar file -->
         <dependency>
-            <groupId>jython</groupId>
+            <groupId>javax.servlet</groupId>
+            <artifactId>servlet-api</artifactId>
+            <version>2.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Exclude the jython library, as the built sauce-connect jar seemed to be missing several jython
+        classes (possible bug with maven-shade plugin?)  Projects that reference sauce-connect must explicitly
+        include a dependency for jython -->
+        <dependency>
+            <groupId>org.python</groupId>
             <artifactId>jython</artifactId>
             <version>2.5.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>jetty</groupId>
@@ -83,16 +95,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.googlecode.json-simple</groupId>
-            <artifactId>json-simple</artifactId>
-            <version>1.1</version>
-        </dependency>
-        <dependency>
             <groupId>com.jgoodies</groupId>
             <artifactId>forms</artifactId>
             <version>1.3.0</version>
             <scope>provided</scope>
         </dependency>
+        <!-- Unit test dependencies -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -150,6 +158,7 @@
                     <target>1.5</target>
                 </configuration>
             </plugin>
+            <!-- Maven plugin to build the uber-jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

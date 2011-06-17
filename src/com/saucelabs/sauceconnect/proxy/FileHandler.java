@@ -124,7 +124,7 @@ public class FileHandler {
         process.waitFor();
         return file.canWrite();
       } catch (InterruptedException e1) {
-        throw new IOException(e1);
+        throw new IOException("test");
       }
     }
     return false;
