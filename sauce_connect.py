@@ -918,11 +918,20 @@ def run(options, dependency_versions=None,
             logger.info("** Please contact help@saucelabs.com")
             peace_out(tunnel, returncode=1)  # exits
 
+    def scala_cons(cls):
+        class scala_subclass(cls):
+            def __init__(self, **kwargs):
+                cls.__init__(self)
+                for k, v in kwargs.iteritems():
+                    getattr(self, k + '_$eq')(v)
+        return scala_subclass
+    reverse_ssh = scala_cons(reverse_ssh)
+
     ssh = reverse_ssh(tunnel=tunnel, host=options.host,
-                     ports=options.ports, tunnel_ports=options.tunnel_ports,
-                     ssh_port=options.ssh_port,
-                     use_ssh_config=options.use_ssh_config,
-                     debug=options.debug_ssh)
+                      ports=options.ports, tunnel_ports=options.tunnel_ports,
+                      ssh_port=options.ssh_port,
+                      use_ssh_config=options.use_ssh_config,
+                      debug=options.debug_ssh)
     try:
         ssh.run(options.readyfile)
     except (ReverseSSHError, TunnelMachineError), e:
