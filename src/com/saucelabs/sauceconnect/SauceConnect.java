@@ -70,6 +70,12 @@ public class SauceConnect {
         return interpreter;
     }
 
+    public synchronized static void setInterpreterIfNull(PythonInterpreter aInterpreter) {
+       if (interpreter == null) {
+             interpreter = aInterpreter;
+       }
+    }
+
     @SuppressWarnings("static-access")
     private void storeCommandLineArgs(String[] args) {
         Options options = new Options();
