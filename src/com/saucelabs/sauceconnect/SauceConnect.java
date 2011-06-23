@@ -103,11 +103,15 @@ public class SauceConnect {
             if (result.hasOption("help")) {
                 HelpFormatter help = new HelpFormatter();
                 help.printHelp("java -jar Sauce-Connect.jar USERNAME API_KEY [OPTIONS]", options);
-                System.exit(0);
+                if (standaloneMode) {
+                    System.exit(0);
+                }
             }
             if (result.hasOption("version")) {
                 System.out.println("Version: Sauce Connect 2.0-r" + RELEASE);
-                System.exit(0);
+                if (standaloneMode) {
+                    System.exit(0);
+                }
             }
             if (result.getArgs().length == 0) {
                 throw new ParseException("Missing required arguments USERNAME, API_KEY");
@@ -306,11 +310,15 @@ public class SauceConnect {
         } catch (IOException e) {
             System.err.println("Error connecting to Sauce OnDemand REST API: ");
             e.printStackTrace();
-            System.exit(5);
+            if (standaloneMode) {
+                System.exit(5);
+            }
         } catch (org.json.simple.parser.ParseException e) {
             System.err.println("Error reading from Sauce OnDemand REST API: ");
             e.printStackTrace();
-            System.exit(5);
+            if (standaloneMode) {
+                System.exit(5);
+            }
         }
     }
 
