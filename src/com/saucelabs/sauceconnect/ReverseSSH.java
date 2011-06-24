@@ -20,7 +20,8 @@ import java.io.File;
 import java.io.IOException;
 
 import org.apache.commons.logging.Log;
-import org.mortbay.log.LogFactory;
+
+import org.apache.commons.logging.LogFactory;
 import org.python.core.*;
 
 import ch.ethz.ssh2.Connection;
