@@ -41,6 +41,7 @@
         <zipfileset src="lib/org.mortbay.jetty.jar"/>
         <!-- Jetty version 7 -->
         <zipfileset src="lib/jetty-http-7.2.1.v20101111.jar"/>
+        <zipfileset src="lib/jetty-continuation-7.2.1.v20101111.jar"/>
         <zipfileset src="lib/jetty-server-7.2.1.v20101111.jar"/>
         <zipfileset src="lib/jetty-servlet-7.2.1.v20101111.jar"/>
         <zipfileset src="lib/jetty-util-7.2.1.v20101111.jar"/>
