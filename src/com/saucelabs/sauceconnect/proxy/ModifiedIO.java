@@ -17,11 +17,12 @@
  */
 package com.saucelabs.sauceconnect.proxy;
 
-import org.mortbay.util.IO;
 
 import java.io.*;
 
 public class ModifiedIO {
+
+    private static final int BUFFER_SIZE = 8192;
     /**
      * Copy Stream in to Stream out until EOF or exception.
      */
@@ -44,17 +45,17 @@ public class ModifiedIO {
                             OutputStream out,
                             long byteCount)
             throws IOException {
-        byte buffer[] = new byte[IO.bufferSize];
+        byte buffer[] = new byte[BUFFER_SIZE];
         int len;
 
         long returnVal = 0;
 
         if (byteCount >= 0) {
             while (byteCount > 0) {
-                if (byteCount < IO.bufferSize)
+                if (byteCount < BUFFER_SIZE)
                     len = in.read(buffer, 0, (int) byteCount);
                 else
-                    len = in.read(buffer, 0, IO.bufferSize);
+                    len = in.read(buffer, 0, BUFFER_SIZE);
 
                 if (len == -1) {
                     break;
@@ -66,7 +67,7 @@ public class ModifiedIO {
             }
         } else {
             while (true) {
-                len = in.read(buffer, 0, IO.bufferSize);
+                len = in.read(buffer, 0, BUFFER_SIZE);
                 if (len < 0) {
                     break;
                 }
@@ -85,17 +86,17 @@ public class ModifiedIO {
                             Writer out,
                             long byteCount)
             throws IOException {
-        char buffer[] = new char[IO.bufferSize];
+        char buffer[] = new char[BUFFER_SIZE];
         int len;
 
         long returnVal = 0;
 
         if (byteCount >= 0) {
             while (byteCount > 0) {
-                if (byteCount < IO.bufferSize)
+                if (byteCount < BUFFER_SIZE)
                     len = in.read(buffer, 0, (int) byteCount);
                 else
-                    len = in.read(buffer, 0, IO.bufferSize);
+                    len = in.read(buffer, 0, BUFFER_SIZE);
 
                 if (len == -1) {
                     break;
@@ -107,7 +108,7 @@ public class ModifiedIO {
             }
         } else {
             while (true) {
-                len = in.read(buffer, 0, IO.bufferSize);
+                len = in.read(buffer, 0, BUFFER_SIZE);
                 if (len == -1) {
                     break;
                 }
