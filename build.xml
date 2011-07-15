@@ -87,8 +87,9 @@
         <zipfileset src="forms-1.3.0.jar"/>
         <zipfileset src="lib/ganymed-ssh2-build251beta1.jar"/>
 	<zipfileset src="${scala-library.jar}"/>
+	<zipfileset src="lib/netty-3.2.4.Final.jar"/>
         <manifest>
-            <attribute name="Main-Class" value="com.saucelabs.sauceconnect.SauceConnect"/>
+          <attribute name="Main-Class" value="com.saucelabs.sauceconnect.SauceConnect"/>
         </manifest>
     </jarjar>
    </target>

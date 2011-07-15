@@ -106,12 +106,13 @@ class TunnelMachine(object):
 
     _host_search = re.compile("//([^/]+)").search
 
-    def __init__(self, rest_url, user, password, domains, ssh_port, boost_mode, metadata=None):
+    def __init__(self, rest_url, user, password, domains, ssh_port, boost_mode, use_ssh, metadata=None):
         self.user = user
         self.password = password
         self.domains = set(domains)
         self.ssh_port = ssh_port
         self.boost_mode = boost_mode
+        self.use_ssh = use_ssh
         self.metadata = metadata or dict()
 
         self.reverse_ssh = None
@@ -210,7 +211,9 @@ class TunnelMachine(object):
         data = json.dumps(dict(DomainNames=list(self.domains),
                                Metadata=self.metadata,
                                SSHPort=self.ssh_port,
-                               UseCachingProxy=self.boost_mode))
+                               UseCachingProxy=self.boost_mode,
+                               UseKgp=not self.use_ssh))
+        logger.info("%s" % data)
         req = urllib2.Request(url=self.base_url, headers=headers, data=data)
         doc = self._get_doc(req)
         if doc.get('error'):
@@ -738,6 +741,8 @@ Performance tip:
                   help=optparse.SUPPRESS_HELP)
     og.add_option("-b", "--boost-mode", default=False, action="store_true",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--ssh", default=False, action="store_true",
+                  help=optparse.SUPPRESS_HELP)
     op.add_option_group(og)
 
     og = optparse.OptionGroup(op, "Script debugging options")
@@ -900,6 +905,7 @@ def run(options, dependency_versions=None,
             tunnel = TunnelMachine(options.rest_url, options.user,
                                    options.api_key, options.domains,
                                    options.ssh_port, bool(options.boost_mode),
+                                   bool(options.ssh),
                                    metadata)
         except TunnelMachineError, e:
             logger.error(e)

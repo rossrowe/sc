@@ -31,16 +31,16 @@ import java.net.URL
 import java.net.URLConnection
 import java.nio.channels.SocketChannel
 import java.util.Enumeration
-import java.util.LinkedHashMap
 import java.util.Map
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 
 import scala.util.control.Breaks._
-import scala.collection.immutable.HashSet
-import scala.io.Source
+import scala.collection._
+import scala.collection.mutable.LinkedHashMap
+import scala.collection.JavaConversions._
 
-class InsensitiveStringSet extends scala.collection.mutable.HashSet[String] {
+class InsensitiveStringSet extends mutable.HashSet[String] {
   override def contains(elem:String) : Boolean = {
     this.iterator exists (elem.toLowerCase == _.toLowerCase)
   }
@@ -83,35 +83,31 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
   _ProxySchemes += HttpSchemes.HTTPS
   _ProxySchemes += "ftp"
 
-  protected val _sslMap = new LinkedHashMap[String, SslRelay]();
+  protected val _sslMap = new LinkedHashMap[String, SslRelay]()
+
+  protected val cache = new LinkedHashMap[String, String]()
 
   override def handle(target:String, baseRequest:Request, request:javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
     if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod())) {
-      _logger.debug("CONNECT request for {}", request.getRequestURI())
-      handleConnect(baseRequest, request, response, request.getRequestURI())
+      val host = request.getRequestURI()
+      _logger.debug("CONNECT request for {}", host)
+      handleConnect(baseRequest, request, response, host)
       return
     }
-    val host = request.getRequestURI()
-    println("proxying for " + host)
+    val url = request.getRequestURI()
+    println("proxying " + url)
     try {
 
-      // Has the requested resource been found?
-      // if ("True".equals(response.getAttribute("NotFound"))) {
-      //   response.removeAttribute("NotFound")
-      //   sendNotFound(response)
-      //   return
-      // }
-
       // Do we proxy this?
-      if (!validateDestination(host)) {
-        Log.info("ProxyHandler: Forbidden destination " + host)
+      if (!validateDestination(url)) {
+        Log.info("ProxyHandler: Forbidden destination " + url)
         response.setStatus(HttpServletResponse.SC_FORBIDDEN)
         baseRequest.setHandled(true)
         return
       }
 
       // is this URL a /selenium URL?
-      if (isSeleniumUrl(host)) {
+      if (isSeleniumUrl(url)) {
         baseRequest.setHandled(false)
         return
       }
@@ -120,9 +116,9 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     }
     catch {
       case e:Exception => {
-        _logger.debug("Could not proxy " + host, e)
+        _logger.debug("Could not proxy " + url, e)
         if (!response.isCommitted())
-          response.sendError(400, "Could not proxy " + host + "\n" + e)
+          response.sendError(400, "Could not proxy " + url + "\n" + e)
       }
     }
   }
@@ -191,9 +187,11 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
     // Transfer unread data from old connection to new connection
     // We need to copy the data to avoid races:
-    // 1. when this unread data is written and the server replies before the clientToProxy
-    // connection is installed (it is only installed after returning from this method)
-    // 2. when the client sends data before this unread data has been written.
+    // 1. when this unread data is written and the server replies
+    // before the clientToProxy connection is installed (it is only
+    // installed after returning from this method)
+    // 2. when the client sends data before this unread data has been
+    // written.
     val httpConnection = HttpConnection.getCurrentConnection()
 
     val server = httpConnection.getServer()
@@ -284,39 +282,35 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
     // check connection header
     var connectionHdr = request.getHeader(HttpHeaders.CONNECTION)
-    if (connectionHdr != null && (connectionHdr.equalsIgnoreCase(HttpHeaders.KEEP_ALIVE) || connectionHdr.equalsIgnoreCase("close")))
-      connectionHdr = null
 
     // copy headers
     var xForwardedFor = false
     var isGet = "GET".equals(request.getMethod())
     var hasContent = false
-    val enm = request.getHeaderNames()
-    while (enm.hasMoreElements()) breakable {
-      // TODO could be better than this!
-      val hdr = enm.nextElement().asInstanceOf[String]
+    val names = request.getHeaderNames()
+    for (name <- names.map(_.asInstanceOf[String])) breakable {
 
-      if (_DontProxyHeaders.contains(hdr) || !_chained && _ProxyAuthHeaders.contains(hdr))
-        break
-      if (connectionHdr != null && connectionHdr.indexOf(hdr) >= 0)
-        break
+      if (_DontProxyHeaders.contains(name) || !_chained && _ProxyAuthHeaders.contains(name)) break
 
-      if (!isGet && HttpHeaders.CONTENT_TYPE.equals(hdr))
+      if (connectionHdr != null && connectionHdr.contains(name)) break
+
+      if (!isGet && name == HttpHeaders.CONTENT_TYPE) {
         hasContent = true
+      }
 
-      val vals = request.getHeaders(hdr)
-      while (vals.hasMoreElements()) breakable {
-        val v = vals.nextElement().asInstanceOf[String]
-        if (v != null) {
+      val values = request.getHeaders(name)
+      for (value <- values.map(_.asInstanceOf[String])) breakable {
+        if (value != null) {
           // don't proxy Referer headers if the referer is Selenium!
-          if (("Referer".equals(hdr) && (-1 != v.indexOf("/selenium-server/"))))
-            break
-          if (!isGet && HttpHeaders.CONTENT_LENGTH.equals(hdr) && Integer.parseInt(v) > 0) {
+          if (name == "Referer" && value.contains("/selenium-server/")) break
+
+          if (!isGet && name == HttpHeaders.CONTENT_LENGTH && Integer.parseInt(value) > 0) {
             hasContent = true
           }
 
-          connection.addRequestProperty(hdr, v)
-          xForwardedFor |= HttpHeaders.X_FORWARDED_FOR.equalsIgnoreCase(hdr)
+          //println("forwarding: " + name + " " + value)
+          connection.addRequestProperty(name, value)
+          xForwardedFor |= HttpHeaders.X_FORWARDED_FOR.equalsIgnoreCase(name)
         }
       }
     }
@@ -329,7 +323,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
     // a little bit of cache control
     val cache_control = request.getHeader(HttpHeaders.CACHE_CONTROL)
-    if (cache_control != null && (cache_control.indexOf("no-cache") >= 0 || cache_control.indexOf("no-store") >= 0))
+    if (cache_control != null && cache_control.contains("no-cache") || cache_control.contains("no-store"))
       connection.setUseCaches(false)
 
     // customize Connection
@@ -414,7 +408,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     var bytesCopied:Long = -1
     request.setHandled(true)
     if (proxy_in != null) {
-      bytesCopied = ModifiedIO.copy(proxy_in, response.getOutputStream())
+      bytesCopied = IOProxy.proxy(proxy_in, response.getOutputStream())
     }
     return bytesCopied
   }
@@ -426,7 +420,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     var connector:SslRelay = null
     _sslMap.synchronized {
       val host = uri.getHost()
-      connector = _sslMap.get(host)
+      var connector = _sslMap.get(host).getOrElse(null)
       if (connector == null) {
         // we do this because the URI above doesn't actually have the host broken up (it returns null on getHost())
 
@@ -468,7 +462,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     // note: this logic assumes the tester is using *custom and has imported the CA cert in to IE/Firefox/etc
     // the CA cert can be found at http://dangerous-certificate-authority.openqa.org
     val keystore = File.createTempFile("selenium-rc-" + host, "keystore")
-    val urlString = "http://dangerous-certificate-authority.openqa.org/genkey.jsp?padding=" + _sslMap.size() + "&domain=" + host
+    val urlString = "http://dangerous-certificate-authority.openqa.org/genkey.jsp?padding=" + _sslMap.size + "&domain=" + host
 
     val url = new URL(urlString)
     val conn = url.openConnection()

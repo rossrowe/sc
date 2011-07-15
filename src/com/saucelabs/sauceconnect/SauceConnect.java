@@ -95,6 +95,7 @@ public class SauceConnect {
         options.addOption("h", "help", false, "Display this help text");
         options.addOption("v", "version", false, "Print the version and exit");
         options.addOption("b", "boost-mode", false, null);
+        options.addOption("s", "ssh", false, null);
         options.addOption("d", "debug", false, "Enable verbose debugging");
         options.addOption("l", "lite", false, null);
         try {
@@ -106,7 +107,7 @@ public class SauceConnect {
                 System.exit(0);
             }
             if (result.hasOption("version")) {
-                System.out.println("Version: Sauce Connect 2.0-r" + RELEASE);
+                System.out.println("Version: Sauce Connect 3.0b1"); //2.0-r" + RELEASE);
                 System.exit(0);
             }
             if (result.getArgs().length == 0) {
@@ -151,6 +152,9 @@ public class SauceConnect {
                 args.add(new PyString("--readyfile"));
                 args.add(new PyString(options.getOptionValue('f')));
             }
+            if (options.hasOption('a')) {
+                args.add(new PyString("--ssh"));
+            }
         }
 
         return new PyList(args);
@@ -170,7 +174,11 @@ public class SauceConnect {
 
     private void startTunnel() {
         try {
-            getInterpreter().exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
+            if (commandLineArguments.hasOption("s")) {
+                getInterpreter().exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH");
+            } else {
+                getInterpreter().exec("from com.saucelabs.sauceconnect import KgpTunnel as JavaReverseSSH");
+            }
             String startCommand;
             if (liteMode) {
                 startCommand = "sauce_connect.run(options,"
