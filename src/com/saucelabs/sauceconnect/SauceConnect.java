@@ -152,7 +152,7 @@ public class SauceConnect {
                 args.add(new PyString("--readyfile"));
                 args.add(new PyString(options.getOptionValue('f')));
             }
-            if (options.hasOption('a')) {
+            if (options.hasOption('s')) {
                 args.add(new PyString("--ssh"));
             }
         }

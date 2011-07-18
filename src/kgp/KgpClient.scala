@@ -74,6 +74,7 @@ class KgpConn(id: Long, client: KgpClient) {
   private val log = LogFactory.getLog(this.getClass)
   var isRemoteShutdown = false
   var isLocalShutdown = false
+  val kgpChannel = client.kgpChannel
 
   def dataReceived(msg: ChannelBuffer) {
     log.info("dataReceived not handled")
@@ -96,13 +97,13 @@ class KgpConn(id: Long, client: KgpClient) {
       isLocalShutdown = true
     }
     if (isRemoteShutdown) {
-      log.info("finished closing " + id + ", 1 of " + KgpChannel.conns.size + " kgp-tunneled connections")
-      KgpChannel.conns -= this.id
+      log.info("finished closing " + id + ", 1 of " + kgpChannel.conns.size + " kgp-tunneled connections")
+      kgpChannel.conns -= this.id
     }
   }
 }
 
-object KgpChannel {
+class KgpChannel {
   type Packet = (Long, Long, Long, Int, ChannelBuffer)
   implicit def longToKgpModLong(x: Long): KgpModLong = new KgpModLong(x)
 
@@ -215,20 +216,20 @@ class KgpPacketDecoder extends FrameDecoder {
   }
 }
 
-class KgpPacketEncoderr extends OneToOneEncoder {
+class KgpPacketEncoder extends OneToOneEncoder {
   private val log = LogFactory.getLog(this.getClass)
 
   override def encode(ctx: ChannelHandlerContext, channel: Channel, msg: Object): Object = {
     msg match {
-      case "announce" => {
-        log.info("announcing as " + ChannelBuffers.hexDump(wrappedBuffer(KgpChannel.id)))
+      case ("announce", kgpChannel: KgpChannel) => {
+        log.info("announcing as " + ChannelBuffers.hexDump(wrappedBuffer(kgpChannel.id)))
         val b = buffer(35)
         b.writeBytes(copiedBuffer("kgp", UTF_8))
         b.writeInt(0)
         b.writeInt(1)
         b.writeInt(0)
         b.writeInt(0)
-        b.writeBytes(KgpChannel.id)
+        b.writeBytes(kgpChannel.id)
         return b
       }
       case (conn: Long, seq: Long, ack: Long, ctrl: Int, msg: ChannelBuffer) => {
@@ -342,6 +343,7 @@ class KgpClient(host: String, port: Int, forwardPort: Int) {
   val timer = new HashedWheelTimer()
   var currentChannel: Channel = null
   val trafficLock = new Object
+  val kgpChannel = new KgpChannel()
 
   def connect() {
     log.info("connecting to Sauce Connect server")
@@ -355,7 +357,7 @@ class KgpClient(host: String, port: Int, forwardPort: Int) {
       override def getPipeline: ChannelPipeline = {
         Channels.pipeline(new KgpPacketDecoder(),
                           client,
-                          new KgpPacketEncoderr())
+                          new KgpPacketEncoder())
       }
     })
 
@@ -370,7 +372,7 @@ class KgpClient(host: String, port: Int, forwardPort: Int) {
 
   def send(conn_id: Long,  msg: ChannelBuffer) = {
     trafficLock.synchronized {
-      val packet = KgpChannel.nextPacket(conn_id, msg)
+      val packet = kgpChannel.nextPacket(conn_id, msg)
       if (currentChannel != null) {
           currentChannel.write(packet)
       }
@@ -379,7 +381,7 @@ class KgpClient(host: String, port: Int, forwardPort: Int) {
 
   def close_sub(conn_id: Long) {
     trafficLock.synchronized {
-      val packet = KgpChannel.closeConnPacket(conn_id)
+      val packet = kgpChannel.closeConnPacket(conn_id)
       if (currentChannel != null) {
         currentChannel.write(packet)
       }
@@ -404,6 +406,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   var minAckTime = 5000L // a reasonable maximum to start with
   var calculatedTimeout = minAckTime
   var keepaliveTimer: Timer = null
+  val kgpChannel = client.kgpChannel
 
   implicit def ftotimertask(f: () => Unit) = new TimerTask {
     def run(timeout: Timeout) = f()
@@ -413,25 +416,25 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     keepaliveTimer = new HashedWheelTimer()
     log.info("connected!")
     val channel = e.getChannel
-    channel.write("announce")
-    log.info("resending " + KgpChannel.outBuffer.length + " packets")
-    for (packet <- KgpChannel.outBuffer) {
+    channel.write(("announce", kgpChannel))
+    log.info("resending " + kgpChannel.outBuffer.length + " packets")
+    for (packet <- kgpChannel.outBuffer) {
       channel.write(packet)
     }
     lastIncoming = System.currentTimeMillis
     def keepaliveHandler() {
-      if (lastKeepaliveSeq %> KgpChannel.outAcked) {
+      if (lastKeepaliveSeq %> kgpChannel.outAcked) {
         val now = System.currentTimeMillis
         if (now - lastIncoming > calculatedTimeout) {
-          log.info("Sauce Connect connection stalled! " + KgpChannel.outAcked + '/' + KgpChannel.outSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + minAckTime + " " + ctime())
+          log.info("Sauce Connect connection stalled! " + kgpChannel.outAcked + '/' + kgpChannel.outSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + minAckTime + " " + ctime())
           channel.write("close").addListener(ChannelFutureListener.CLOSE)
           return
         } else {
-          //log.info("LIVE!" + " " + KgpChannel.outAcked + " " + '/' + " " + KgpChannel.outSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + (calculatedTimeout - (now - lastIncoming)) + " " + minAckTime + " " + ctime())
+          //log.info("LIVE!" + " " + kgpChannel.outAcked + " " + '/' + " " + kgpChannel.outSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + (calculatedTimeout - (now - lastIncoming)) + " " + minAckTime + " " + ctime())
           }
       }
-      lastKeepaliveSeq = KgpChannel.outSeq
-      val packet = KgpChannel.keepalivePacket()
+      lastKeepaliveSeq = kgpChannel.outSeq
+      val packet = kgpChannel.keepalivePacket()
       channel.write(packet)
       lastKeepaliveTime = System.currentTimeMillis
 
@@ -453,7 +456,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   }
 
   def sendAck(channel: Channel) {
-    val packet = KgpChannel.ackPacket()
+    val packet = kgpChannel.ackPacket()
     channel.write(packet)
   }
 
@@ -486,25 +489,25 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
         lastIncoming = System.currentTimeMillis
         //log.info("got packet " + seq + " on " + conn_id + " " + ctime())
 
-        if (ack %> KgpChannel.outAcked) {
-          //log.info("got an ack on my output up to " + ack + " - was " + KgpChannel.outAcked)
-          KgpChannel.outAcked = ack
+        if (ack %> kgpChannel.outAcked) {
+          //log.info("got an ack on my output up to " + ack + " - was " + kgpChannel.outAcked)
+          kgpChannel.outAcked = ack
         }
-        if (seq %> KgpChannel.inSeq) {
-          KgpChannel.inSeq = seq
+        if (seq %> kgpChannel.inSeq) {
+          kgpChannel.inSeq = seq
 
           if (conn_id == 0) {
             handleConnPacket(c, seq, ack, msg)
             return
           }
 
-          if (KgpChannel.inSeq > KgpChannel.inAcked + 10) {
+          if (kgpChannel.inSeq > kgpChannel.inAcked + 10) {
             sendAck(c)
           }
-          if (!KgpChannel.conns.contains(conn_id)) {
-            KgpChannel.conns(conn_id) = mkconn(conn_id, c)
+          if (!kgpChannel.conns.contains(conn_id)) {
+            kgpChannel.conns(conn_id) = mkconn(conn_id, c)
           }
-          val conn = KgpChannel.conns(conn_id)
+          val conn = kgpChannel.conns(conn_id)
           ctrl match {
             case 0 => {
               if (msg.readableBytes > 0) {
@@ -517,10 +520,10 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
             }
           }
         }  else {
-          log.info("got old packet " + seq + " expected " + KgpChannel.inSeq)
+          log.info("got old packet " + seq + " expected " + kgpChannel.inSeq)
         }
 
-        KgpChannel.pruneOutBuffer()
+        kgpChannel.pruneOutBuffer()
       }
       case (ver: (Int, Int, Int), id: Array[Byte]) => {
         log.info("got announcement:" + ver + " " + ChannelBuffers.hexDump(wrappedBuffer(id)))

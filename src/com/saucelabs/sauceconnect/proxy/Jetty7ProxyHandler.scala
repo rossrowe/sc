@@ -89,13 +89,13 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
   override def handle(target:String, baseRequest:Request, request:javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
     if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod())) {
-      val host = request.getRequestURI()
+      val host = request.getRequestURL.toString
       _logger.debug("CONNECT request for {}", host)
       handleConnect(baseRequest, request, response, host)
       return
     }
-    val url = request.getRequestURI()
-    println("proxying " + url)
+    val url = baseRequest.getUri.toString
+    _logger.info("proxying " + url)
     try {
 
       // Do we proxy this?
@@ -112,7 +112,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
         return
       }
 
-      proxyPlainTextRequest(baseRequest, request, response)
+      proxyPlainTextRequest(baseRequest, response)
     }
     catch {
       case e:Exception => {
@@ -264,8 +264,8 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     return channel
   }
 
-  protected def proxyPlainTextRequest(request:Request, httpRequest:javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) : Long = {
-    val url = new URL(request.getRequestURL().toString())
+  protected def proxyPlainTextRequest(request:Request, response:javax.servlet.http.HttpServletResponse) : Long = {
+    val url = new URL(request.getUri.toString)
     val connection = url.openConnection()
     connection.setAllowUserInteraction(false)
 
@@ -308,7 +308,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
             hasContent = true
           }
 
-          //println("forwarding: " + name + " " + value)
+          //_logger.info("forwarding: " + name + " " + value)
           connection.addRequestProperty(name, value)
           xForwardedFor |= HttpHeaders.X_FORWARDED_FOR.equalsIgnoreCase(name)
         }
