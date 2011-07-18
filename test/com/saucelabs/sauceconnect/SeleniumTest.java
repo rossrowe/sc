@@ -39,11 +39,8 @@ public class SeleniumTest extends HttpServlet {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         server.setHandler(context);
-
         context.addServlet(new ServletHolder(this), "/*");
-
         server.start();
-//        server.join();
 
         System.out.println("Started Jetty at 8080");
 

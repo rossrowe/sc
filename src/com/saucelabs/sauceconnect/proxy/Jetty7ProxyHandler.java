@@ -118,11 +118,11 @@ public class Jetty7ProxyHandler extends ConnectHandler {
     @Override
     public void handle(String target, Request baseRequest, javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response) throws ServletException, IOException {
         if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod())) {
-            _logger.debug("CONNECT request for {}", request.getRequestURI());
-            handleConnect(baseRequest, request, response, request.getRequestURI());
+            _logger.debug("CONNECT request for {}", baseRequest.getUri().toString());
+            handleConnect(baseRequest, request, response, baseRequest.getUri().toString());
             return;
         }
-        String host = request.getRequestURI();
+        String host = baseRequest.getUri().toString();
         try {
 
             // Has the requested resource been found?
@@ -156,7 +156,7 @@ public class Jetty7ProxyHandler extends ConnectHandler {
     }
 
     protected long proxyPlainTextRequest(Request request, javax.servlet.http.HttpServletRequest httpRequest, javax.servlet.http.HttpServletResponse response) throws IOException {
-        URL url = new URL(request.getRequestURL().toString());
+        URL url = new URL(request.getUri().toString());
         URLConnection connection = url.openConnection();
         connection.setAllowUserInteraction(false);
 
