@@ -61,13 +61,15 @@ class KgpModLong(x: Long) {
 }
 
 object Kgp {
-  val INTRO_LEN = 32
+  val INTRO_LEN = 35
   val HEADER_LEN = 4 * 4
   val MAX_PACKET_SIZE = 30 * 1024
 
   val MODULUS = math.pow(2, 32).toInt
   val MIN_CHAN = 1  // 0 is reserved for per-TCP-connection communication
   val MAX_CHAN = MODULUS - 1
+
+  val VERSION = (0, 1, 0)
 }
 
 class KgpConn(id: Long, client: KgpClient) {
@@ -139,16 +141,16 @@ class KgpChannel {
     return packet
   }
 
-  def nextPacket(id: Long, msg: ChannelBuffer): Packet = {
-    //log.info("sending on " + id + " #" + outSeq + " acking " + inSeq + " len " + msg.readableBytes)
-    val packet = (id, outSeq, inSeq, 0, msg)
+  def closeConnPacket(id: Long): Packet = {
+    val packet = (id, outSeq, inSeq, 1, buffer(0))
     tickOutbound()
     outBuffer.append(packet)
     return packet
   }
 
-  def closeConnPacket(id: Long): Packet = {
-    val packet = (id, outSeq, inSeq, 1, buffer(0))
+  def nextPacket(id: Long, msg: ChannelBuffer): Packet = {
+    //log.info("sending on " + id + " #" + outSeq + " acking " + inSeq + " len " + msg.readableBytes)
+    val packet = (id, outSeq, inSeq, 0, msg)
     tickOutbound()
     outBuffer.append(packet)
     return packet
@@ -223,11 +225,11 @@ class KgpPacketEncoder extends OneToOneEncoder {
     msg match {
       case ("announce", kgpChannel: KgpChannel) => {
         log.info("announcing as " + ChannelBuffers.hexDump(wrappedBuffer(kgpChannel.id)))
-        val b = buffer(35)
+        val b = buffer(Kgp.INTRO_LEN)
         b.writeBytes(copiedBuffer("kgp", UTF_8))
-        b.writeInt(0)
-        b.writeInt(1)
-        b.writeInt(0)
+        b.writeInt(Kgp.VERSION._1)
+        b.writeInt(Kgp.VERSION._2)
+        b.writeInt(Kgp.VERSION._3)
         b.writeInt(0)
         b.writeBytes(kgpChannel.id)
         return b
@@ -413,8 +415,12 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   }
 
   override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
-    keepaliveTimer = new HashedWheelTimer()
     log.info("connected!")
+    if (keepaliveTimer != null) {
+      log.info("keepalive timer still going when reconnecting, stopping it and making a new one")
+      keepaliveTimer.stop()
+    }
+    keepaliveTimer = new HashedWheelTimer()
     val channel = e.getChannel
     channel.write(("announce", kgpChannel))
     log.info("resending " + kgpChannel.outBuffer.length + " packets")
@@ -534,11 +540,11 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
     val reconnectIn: (Int) => Unit = client.timer.newTimeout(client.connect _, _, TimeUnit.MILLISECONDS)
     log.info("connection to Sauce Connect server closed")
+    client.currentChannel = null
+    reconnectIn(1000)
     if (keepaliveTimer != null) {
       keepaliveTimer.stop()
     }
-    client.currentChannel = null
-    reconnectIn(1000)
   }
 
   override def exceptionCaught(context: ChannelHandlerContext, ee: ExceptionEvent) {

@@ -13,9 +13,9 @@ import org.eclipse.jetty.server.handler.ConnectHandler
 import org.eclipse.jetty.server.ssl.SslSocketConnector
 import org.eclipse.jetty.util.IO
 import org.eclipse.jetty.util.StringMap
-import org.eclipse.jetty.util.log.Log
-import org.eclipse.jetty.util.log.Logger
 
+import org.apache.commons.logging.Log
+import org.apache.commons.logging.LogFactory
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLHandshakeException
 import javax.servlet.ServletException
@@ -47,7 +47,7 @@ class InsensitiveStringSet extends mutable.HashSet[String] {
 }
 
 class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler {
-  protected def _logger = Log.getLogger(getClass().getName())
+  protected val log = LogFactory.getLog(this.getClass)
 
   protected def useCyberVillains = true
 
@@ -90,17 +90,17 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
   override def handle(target:String, baseRequest:Request, request:javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
     if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod())) {
       val host = request.getRequestURL.toString
-      _logger.debug("CONNECT request for {}", host)
+      log.debug("CONNECT request for " + host)
       handleConnect(baseRequest, request, response, host)
       return
     }
     val url = baseRequest.getUri.toString
-    _logger.info("proxying " + url)
+    log.info("proxying " + url)
     try {
 
       // Do we proxy this?
       if (!validateDestination(url)) {
-        Log.info("ProxyHandler: Forbidden destination " + url)
+        log.info("ProxyHandler: Forbidden destination " + url)
         response.setStatus(HttpServletResponse.SC_FORBIDDEN)
         baseRequest.setHandled(true)
         return
@@ -116,7 +116,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     }
     catch {
       case e:Exception => {
-        _logger.debug("Could not proxy " + url, e)
+        log.debug("Could not proxy " + url, e)
         if (!response.isCommitted())
           response.sendError(400, "Could not proxy " + url + "\n" + e)
       }
@@ -179,7 +179,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     }
 
     if (!validateDestination(baseRequest, host)) {
-      Log.info("ProxyHandler: Forbidden destination " + host)
+      log.info("ProxyHandler: Forbidden destination " + host)
       response.setStatus(HttpServletResponse.SC_FORBIDDEN)
       baseRequest.setHandled(true)
       return
@@ -246,7 +246,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     // so that Jetty understands that it has to upgrade the connection
     request.setAttribute("org.eclipse.jetty.io.Connection", connection)
     response.setStatus(HttpServletResponse.SC_SWITCHING_PROTOCOLS)
-    _logger.debug("Upgraded connection to {}", connection)
+    log.debug("Upgraded connection to " + connection)
   }
 
   protected def prepareConnections(context:ConcurrentMap[String, Object], channel:SocketChannel, buffer:Buffer) = {
@@ -308,7 +308,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
             hasContent = true
           }
 
-          //_logger.info("forwarding: " + name + " " + value)
+          //log.info("forwarding: " + name + " " + value)
           connection.addRequestProperty(name, value)
           xForwardedFor |= HttpHeaders.X_FORWARDED_FOR.equalsIgnoreCase(name)
         }
@@ -350,7 +350,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
     var proxy_in:InputStream = null
 
-    // handler status codes etc.
+    // handle status codes etc.
     var code = -1
     if (http != null) {
       proxy_in = http.getErrorStream()
@@ -362,12 +362,13 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
           throw new RuntimeException("Couldn't establish SSL handshake.  Try using trustAllSSLCertificates.\n" + e.getLocalizedMessage(), e)
         }
       }
+      log.info("responding to request for " + url + " with code " + code)
       response.setStatus(code)
       //response.setReason(http.getResponseMessage())
 
       val contentType = http.getContentType()
-      if (_logger.isDebugEnabled()) {
-        _logger.debug("Content-Type is: " + contentType)
+      if (log.isDebugEnabled()) {
+        log.debug("Content-Type is: " + contentType)
       }
     }
 
