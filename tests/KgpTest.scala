@@ -269,22 +269,53 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
         kpd.decode(ctx, channel, buf) should be (null)
         buf.readerIndex should be (readerIndex)
       }
-      it("parses packets correctly") {
-        val buf = buffer(Kgp.HEADER_LEN + 1)
-        buf.writeInt(1)
-        buf.writeInt(0)
-        buf.writeInt(0)
-        buf.writeShort(0.toShort)
-        buf.writeShort(1)
-        buf.writeBytes(Array[Byte]('x'))
-        val readerIndex = buf.readerIndex
-        kpd.decode(ctx, channel, buf) should be (1, 0, 0, 0, wrappedBuffer(Array[Byte]('x')))
-        buf.readerIndex should not be (readerIndex)
+      it("decodes packets that a KpgPacketEncoder produces") {
+        val kpe = new KgpPacketEncoder()
+        val packet = (1L, 0L, 0L, 0, wrappedBuffer(Array[Byte]('x')))
+        val buf = kpe.encode(ctx, channel, packet)
+        buf match {
+          case buf: ChannelBuffer => {
+            val readerIndex = buf.readerIndex
+            kpd.decode(ctx, channel, buf) should be (packet)
+            buf.readerIndex should not be (readerIndex)
+          }
+        }
       }
     }
 
   }
 
   describe("KgpPacketEncoder") {
+    it("writes announcements that a KgpPacketDecoder can decode") {
+      val kpe = new KgpPacketEncoder()
+      val c = new KgpChannel()
+      val kpd = new KgpPacketDecoder()
+      val ctx = mock[ChannelHandlerContext]
+      val channel = mock[Channel]
+      val buf = kpe.encode(ctx, channel, ("announce", c))
+      buf match {
+        case buf: ChannelBuffer => {
+          val (version, id) = kpd.decode(ctx, channel, buf)
+          version should be (Kgp.VERSION)
+          id should be (c.id)
+        }
+      }
+    }
+    it("writes packets that a KgpPacketDecoder can decode") {
+      val kpe = new KgpPacketEncoder()
+      val c = new KgpChannel()
+      val kpd = new KgpPacketDecoder()
+      kpd.initialized = true
+      val ctx = mock[ChannelHandlerContext]
+      val channel = mock[Channel]
+      val packet1 = (1L, 0L, 0L, 0, wrappedBuffer(Array[Byte]('x')))
+      val buf = kpe.encode(ctx, channel, packet1)
+      buf match {
+        case buf: ChannelBuffer => {
+          val packet2 = kpd.decode(ctx, channel, buf)
+          packet2 should be (packet1)
+        }
+      }
+    }
   }
 }
