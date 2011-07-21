@@ -22,7 +22,7 @@ import org.apache.commons.logging.Log
 import org.mortbay.log.LogFactory
 import org.python.core._
 
-import com.saucelabs.kgp.KgpClient
+import com.saucelabs.kgp.{KgpClient, Connect, Close}
 
 class KgpTunnel {
   println("instantiating KGP tunnel")
@@ -85,7 +85,8 @@ class KgpTunnel {
     val user = getTunnelSetting("user")
     val password = getTunnelSetting("password")
     tunnelConnection = new KgpClient(host, this.ssh_port, this.ports(0).toInt)
-    tunnelConnection.connect()
+    tunnelConnection.start()
+    tunnelConnection ! Connect
     //tunnelConnection.authenticateWithPassword(user, password)
     for (index <- 0 until ports.length) {
       val remotePort = Integer.valueOf(tunnel_ports(index))
@@ -122,6 +123,6 @@ class KgpTunnel {
     if (this.readyfile != null) {
       this.readyfile.delete()
     }
-    tunnelConnection.close()
+    tunnelConnection ! Close
   }
 }

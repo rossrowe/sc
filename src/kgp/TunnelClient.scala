@@ -1,4 +1,4 @@
-import com.saucelabs.kgp.KgpClient
+import com.saucelabs.kgp.{KgpClient, Connect}
 
 object TunnelClient {
 
@@ -17,7 +17,8 @@ object TunnelClient {
     val forwardPort = args(2).toInt
 
     val client = new KgpClient(host, port, forwardPort)
-    client.connect()
+    client.start()
+    client ! Connect
     // Wait until the connection is closed or the connection attempt fails.
     //future.getChannel.getCloseFuture.awaitUninterruptibly
 

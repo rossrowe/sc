@@ -37,10 +37,12 @@ import java.net.{InetSocketAddress, ConnectException}
 import java.io.IOException
 import java.util.concurrent.{TimeUnit, Executors}
 import java.util.Date
+
 import util.control.Breaks._
 import util.Random
 import collection.mutable.{Map, ListBuffer}
-
+import actors.Actor
+import actors.Actor._
 
 class KgpModLong(x: Long) {
   def %>(curSeq: Long): Boolean = {
@@ -95,7 +97,7 @@ class KgpConn(id: Long, client: KgpClient) {
   def localShutdown() {
     if (!isLocalShutdown) {
       log.info("doing local shutdown for conn " + id)
-      client.close_sub(id)
+      client ! CloseSub(id)
       isLocalShutdown = true
     }
     if (isRemoteShutdown) {
@@ -313,7 +315,7 @@ class ProxyConn(id: Long,
       val msg = e.getMessage.asInstanceOf[ChannelBuffer]
       //System.out.log.info("<<< " + ChannelBuffers.hexDump(msg))
       if (tcpConnected) {
-        client.send(id, msg)
+        client ! Send(id, msg)
       }
     }
 
@@ -332,8 +334,13 @@ class ProxyConn(id: Long,
 
 }
 
-
-class KgpClient(host: String, port: Int, forwardPort: Int) {
+case object Connect
+case class HandleConnected(channel: Channel)
+case class HandleClosed(channel: Channel)
+case class Send(conn_id: Long,  msg: ChannelBuffer)
+case class CloseSub(conn_id: Long)
+case object Close
+class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
   private val log = LogFactory.getLog(this.getClass)
 
   val cf = new NioClientSocketChannelFactory(
@@ -344,56 +351,79 @@ class KgpClient(host: String, port: Int, forwardPort: Int) {
   val bootstrap = new ClientBootstrap(cf)
   val timer = new HashedWheelTimer()
   var currentChannel: Channel = null
-  val trafficLock = new Object
   val kgpChannel = new KgpChannel()
 
-  def connect() {
-    log.info("connecting to Sauce Connect server")
-    def mkconn(id: Long, channel: Channel): KgpConn = {
-      return new ProxyConn(id, this, cf, forwardPort)
-    }
-
-    val client = new KgpClientHandler(this, mkconn)
-    // Set up the pipeline factory.
-    bootstrap.setPipelineFactory(new ChannelPipelineFactory {
-      override def getPipeline: ChannelPipeline = {
-        Channels.pipeline(new KgpPacketDecoder(),
-                          client,
-                          new KgpPacketEncoder())
-      }
-    })
-
-    // Start the connection attempt.
-    val future = bootstrap.connect(new InetSocketAddress(host, port))
-    future.addListener(new ChannelFutureListener() {
-      def operationComplete(future: ChannelFuture) {
-        currentChannel = future.getChannel
-      }
-    })
+  implicit def ftotimertask(f: () => Unit) = new TimerTask {
+    def run(timeout: Timeout) = f()
   }
 
-  def send(conn_id: Long,  msg: ChannelBuffer) = {
-    trafficLock.synchronized {
-      val packet = kgpChannel.nextPacket(conn_id, msg)
-      if (currentChannel != null) {
-          currentChannel.write(packet)
-      }
-    }
+  def after(ms:Int)(f: => Unit) {
+    timer.newTimeout(f _, ms, TimeUnit.MILLISECONDS)
   }
 
-  def close_sub(conn_id: Long) {
-    trafficLock.synchronized {
-      val packet = kgpChannel.closeConnPacket(conn_id)
-      if (currentChannel != null) {
-        currentChannel.write(packet)
-      }
-    }
-  }
+  def act() {
+    loop {
+      react {
+        case Connect => {
+          log.info("connecting to Sauce Connect server")
+          def mkconn(id: Long, channel: Channel): KgpConn = {
+            return new ProxyConn(id, this, cf, forwardPort)
+          }
 
-  def close() {
-    log.info("asked to close connection to Sauce Connect server")
-    if (currentChannel != null) {
-      currentChannel.close()
+          val handler = new KgpClientHandler(this, mkconn)
+          // Set up the pipeline factory.
+          bootstrap.setPipelineFactory(new ChannelPipelineFactory {
+            override def getPipeline: ChannelPipeline = {
+              Channels.pipeline(new KgpPacketDecoder(),
+                                handler,
+                                new KgpPacketEncoder())
+            }
+          })
+
+          // Start the connection attempt.
+          bootstrap.connect(new InetSocketAddress(host, port))
+        }
+
+        case HandleConnected(channel) => {
+          if (currentChannel != null) {
+            log.warn("got a new connection while we still had an old one!")
+            if (currentChannel != channel) {
+              log.warn("got new connection that is different from old one!  closing the old one and switching...")
+              currentChannel.close()
+            }
+          }
+          currentChannel = channel
+        }
+
+        case HandleClosed(channel) => {
+          if (this.currentChannel == channel ||
+              this.currentChannel == null) {
+            this.currentChannel = null
+            after(1000) { this ! Connect }
+          }
+        }
+
+        case Send(conn_id: Long,  msg: ChannelBuffer) => {
+          val packet = kgpChannel.nextPacket(conn_id, msg)
+          if (currentChannel != null) {
+            currentChannel.write(packet)
+          }
+        }
+
+        case CloseSub(conn_id: Long) => {
+          val packet = kgpChannel.closeConnPacket(conn_id)
+          if (currentChannel != null) {
+            currentChannel.write(packet)
+          }
+        }
+
+        case Close => {
+          log.info("asked to close connection to Sauce Connect server")
+          if (currentChannel != null) {
+            currentChannel.close()
+          }
+        }
+      }
     }
   }
 }
@@ -437,7 +467,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
           return
         } else {
           //log.info("LIVE!" + " " + kgpChannel.outAcked + " " + '/' + " " + kgpChannel.outSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + (calculatedTimeout - (now - lastIncoming)) + " " + minAckTime + " " + ctime())
-          }
+        }
       }
       lastKeepaliveSeq = kgpChannel.outSeq
       val packet = kgpChannel.keepalivePacket()
@@ -448,11 +478,12 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     }
 
     keepaliveTimer.newTimeout(keepaliveHandler _, 1000, TimeUnit.MILLISECONDS)
+
+    client ! HandleConnected(channel)
   }
 
   override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
     log.info("disconnected from Sauce Connect server")
-    //client.timer.newTimeout(client.connect _, 1000, TimeUnit.MILLISECONDS)
   }
 
   implicit def longToKgpModLong(x: Long): KgpModLong = new KgpModLong(x)
@@ -491,6 +522,9 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     // Send back the received message to the remote peer.
     val c = e.getChannel
     e.getMessage match {
+      case (ver: (Int, Int, Int), id: Array[Byte]) => {
+        log.info("got announcement:" + ver + " " + ChannelBuffers.hexDump(wrappedBuffer(id)))
+      }
       case (conn_id: Long, seq: Long, ack: Long, ctrl: Int, msg: ChannelBuffer) => {
         lastIncoming = System.currentTimeMillis
         //log.info("got packet " + seq + " on " + conn_id + " " + ctime())
@@ -531,17 +565,12 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
 
         kgpChannel.pruneOutBuffer()
       }
-      case (ver: (Int, Int, Int), id: Array[Byte]) => {
-        log.info("got announcement:" + ver + " " + ChannelBuffers.hexDump(wrappedBuffer(id)))
-      }
     }
   }
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
-    val reconnectIn: (Int) => Unit = client.timer.newTimeout(client.connect _, _, TimeUnit.MILLISECONDS)
     log.info("connection to Sauce Connect server closed")
-    client.currentChannel = null
-    reconnectIn(1000)
+    client ! HandleClosed(e.getChannel)
     if (keepaliveTimer != null) {
       keepaliveTimer.stop()
     }
