@@ -67,7 +67,7 @@ object Kgp {
   val HEADER_LEN = 4 * 4
   val MAX_PACKET_SIZE = 30 * 1024
 
-  val MODULUS = math.pow(2, 32).toInt
+  val MODULUS = math.pow(2, 32).toLong
   val MIN_CHAN = 1  // 0 is reserved for per-TCP-connection communication
   val MAX_CHAN = MODULUS - 1
 
@@ -79,6 +79,10 @@ class KgpConn(id: Long, client: KgpClient) {
   var isRemoteShutdown = false
   var isLocalShutdown = false
   val kgpChannel = client.kgpChannel
+
+  if (id < Kgp.MIN_CHAN || id > Kgp.MAX_CHAN) {
+    throw new Exception("invalid connection ID: " + id)
+  }
 
   def dataReceived(msg: ChannelBuffer) {
     log.info("dataReceived not handled")
@@ -131,31 +135,25 @@ class KgpChannel {
     }
   }
 
-  def keepalivePacket(): Packet = {
-    val packet = (0L, outSeq, inSeq, 0, wrappedBuffer(Array[Byte]('k')))
-    tickOutbound()
-    return packet
-  }
-
-  def ackPacket(): Packet = {
-    val packet = (0L, outSeq, inSeq, 0, wrappedBuffer(Array[Byte]('a')))
-    tickOutbound()
-    return packet
-  }
-
   def closeConnPacket(id: Long): Packet = {
     val packet = (id, outSeq, inSeq, 1, buffer(0))
     tickOutbound()
-    outBuffer.append(packet)
+    outBuffer += packet
     return packet
   }
 
-  def nextPacket(id: Long, msg: ChannelBuffer): Packet = {
+  def packetize(id: Long, data: ChannelBuffer): ListBuffer[Packet] = {
+    val packets = ListBuffer[Packet]()
     //log.info("sending on " + id + " #" + outSeq + " acking " + inSeq + " len " + msg.readableBytes)
-    val packet = (id, outSeq, inSeq, 0, msg)
-    tickOutbound()
-    outBuffer.append(packet)
-    return packet
+    while (data.readableBytes > 0) {
+      val msg = data.readBytes(math.min(data.readableBytes,
+                                        Kgp.MAX_PACKET_SIZE))
+      val packet = (id, outSeq, inSeq, 0, msg)
+      packets += packet
+      tickOutbound()
+    }
+    outBuffer ++= packets
+    return packets
   }
 
   def pruneOutBuffer() = {
@@ -295,7 +293,7 @@ class ProxyConn(id: Long,
     if (tcpConnected) {
       tcpChannel.write(msg)
     } else {
-      outBuffer.append(msg)
+      outBuffer += msg
     }
   }
 
@@ -352,6 +350,7 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
   val timer = new HashedWheelTimer()
   var currentChannel: Channel = null
   val kgpChannel = new KgpChannel()
+  val _r = new Random()
 
   implicit def ftotimertask(f: () => Unit) = new TimerTask {
     def run(timeout: Timeout) = f()
@@ -393,6 +392,10 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
             }
           }
           currentChannel = channel
+          log.info("resending " + kgpChannel.outBuffer.length + " packets")
+          for (packet <- kgpChannel.outBuffer) {
+            currentChannel.write(packet)
+          }
         }
 
         case HandleClosed(channel) => {
@@ -404,9 +407,14 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
         }
 
         case Send(conn_id: Long,  msg: ChannelBuffer) => {
-          val packet = kgpChannel.nextPacket(conn_id, msg)
+          val packets = kgpChannel.packetize(conn_id, msg)
           if (currentChannel != null) {
-            currentChannel.write(packet)
+            for (packet <- packets) {
+              currentChannel.write(packet)
+            }
+            //if (_r.nextFloat < 0.05) {
+            //  currentChannel.close()
+            //}
           }
         }
 
@@ -414,6 +422,9 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
           val packet = kgpChannel.closeConnPacket(conn_id)
           if (currentChannel != null) {
             currentChannel.write(packet)
+            //if (_r.nextFloat < 0.05) {
+            //  currentChannel.close()
+            //}
           }
         }
 
@@ -430,18 +441,39 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
 
 
 class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn) extends SimpleChannelUpstreamHandler {
+  type Packet = (Long, Long, Long, Int, ChannelBuffer)
   private val log = LogFactory.getLog(this.getClass)
 
   var lastIncoming = 0L
   var lastKeepaliveTime = 0L
-  var lastKeepaliveSeq = 0L
+  var keepaliveOutSeq = 0L
+  var keepaliveOutAcked = 0L
+  var keepaliveInSeq = 0L
+  var keepaliveInAcked = 0L
   var minAckTime = 5000L // a reasonable maximum to start with
   var calculatedTimeout = minAckTime
   var keepaliveTimer: Timer = null
   val kgpChannel = client.kgpChannel
+  val _r = new Random()
 
   implicit def ftotimertask(f: () => Unit) = new TimerTask {
     def run(timeout: Timeout) = f()
+  }
+
+  def keepalivePacket(): Packet = {
+    keepaliveOutSeq += 1
+    keepaliveOutSeq %= Kgp.MODULUS
+    val packet = (0L, keepaliveOutSeq, kgpChannel.inSeq, 0, wrappedBuffer(Array[Byte]('k')))
+    return packet
+  }
+
+  def ackPacket(): Packet = {
+    val packet = (0L, keepaliveInSeq, kgpChannel.inSeq, 0, wrappedBuffer(Array[Byte]('a')))
+    if (kgpChannel.inSeq %> kgpChannel.inAcked) {
+      kgpChannel.inAcked = kgpChannel.inSeq
+    }
+    keepaliveInAcked = keepaliveInSeq
+    return packet
   }
 
   override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
@@ -453,24 +485,19 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     keepaliveTimer = new HashedWheelTimer()
     val channel = e.getChannel
     channel.write(("announce", kgpChannel))
-    log.info("resending " + kgpChannel.outBuffer.length + " packets")
-    for (packet <- kgpChannel.outBuffer) {
-      channel.write(packet)
-    }
     lastIncoming = System.currentTimeMillis
     def keepaliveHandler() {
-      if (lastKeepaliveSeq %> kgpChannel.outAcked) {
+      if (keepaliveOutSeq %> keepaliveOutAcked) {
         val now = System.currentTimeMillis
         if (now - lastIncoming > calculatedTimeout) {
-          log.info("Sauce Connect connection stalled! " + kgpChannel.outAcked + '/' + kgpChannel.outSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + minAckTime + " " + ctime())
+          log.info("Sauce Connect connection stalled! " + keepaliveOutAcked + '/' + keepaliveOutSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + minAckTime + " " + ctime())
           channel.write("close").addListener(ChannelFutureListener.CLOSE)
           return
         } else {
-          //log.info("LIVE!" + " " + kgpChannel.outAcked + " " + '/' + " " + kgpChannel.outSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + (calculatedTimeout - (now - lastIncoming)) + " " + minAckTime + " " + ctime())
+          //log.info("LIVE!" + " " + keepaliveOutAcked + " " + '/' + " " + keepaliveOutSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + (calculatedTimeout - (now - lastIncoming)) + " " + minAckTime + " " + ctime())
         }
       }
-      lastKeepaliveSeq = kgpChannel.outSeq
-      val packet = kgpChannel.keepalivePacket()
+      val packet = keepalivePacket()
       channel.write(packet)
       lastKeepaliveTime = System.currentTimeMillis
 
@@ -493,7 +520,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   }
 
   def sendAck(channel: Channel) {
-    val packet = kgpChannel.ackPacket()
+    val packet = ackPacket()
     channel.write(packet)
   }
 
@@ -502,16 +529,23 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
                        ack: Long,
                        msg: ChannelBuffer) = {
     if (msg == wrappedBuffer(Array[Byte]('k'))) {
+      keepaliveInSeq = seq
       sendAck(channel)
     } else if (msg == wrappedBuffer(Array[Byte]('a'))) {
-      if (ack %>= lastKeepaliveSeq) {
-        //log.info("got ack" + " " + ack + " " + ctime())
+      if (seq %>= keepaliveOutSeq) {
+        if (seq %> keepaliveOutSeq) {
+          log.warn("got a keepalive seq greater than what we last sent! " + seq + " / " + keepaliveOutSeq)
+        }
+        if (seq %> keepaliveOutAcked) {
+          keepaliveOutAcked = seq
+        }
+        //log.info("got keepalive ack" + " " + seq + " " + ctime())
         val ackTime = System.currentTimeMillis - lastKeepaliveTime
         minAckTime = math.min(minAckTime, ackTime)
         calculatedTimeout = (System.currentTimeMillis - lastKeepaliveTime) + minAckTime + 2000
         //log.info("new calculated timeout: " + calculatedTimeout)
       } else {
-        log.info("received an out-of-date ack " + ack + " " + lastKeepaliveSeq)
+        log.info("received an out-of-date ack " + seq + " " + keepaliveOutSeq)
       }
     } else {
       log.info("unknown control message:" + " " + msg.toString(UTF_8))
@@ -521,6 +555,13 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     // Send back the received message to the remote peer.
     val c = e.getChannel
+    if (!c.isConnected) {
+      //log.info("messageReceived for closed channel " + c)
+      return
+    }
+    //if (_r.nextFloat < 0.005) {
+    //  c.close()
+    //}
     e.getMessage match {
       case (ver: (Int, Int, Int), id: Array[Byte]) => {
         log.info("got announcement:" + ver + " " + ChannelBuffers.hexDump(wrappedBuffer(id)))
@@ -533,17 +574,16 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
           //log.info("got an ack on my output up to " + ack + " - was " + kgpChannel.outAcked)
           kgpChannel.outAcked = ack
         }
-        if (seq %> kgpChannel.inSeq) {
+        if (conn_id == 0) {
+          handleConnPacket(c, seq, ack, msg)
+        } else if (seq %> kgpChannel.inSeq) {
+          val nextSeq = (kgpChannel.inSeq + 1) % Kgp.MODULUS
+          if (seq %> nextSeq) {
+            log.info("packet skip to " + seq + " expected " + kgpChannel.inSeq)
+          }
+
           kgpChannel.inSeq = seq
 
-          if (conn_id == 0) {
-            handleConnPacket(c, seq, ack, msg)
-            return
-          }
-
-          if (kgpChannel.inSeq > kgpChannel.inAcked + 10) {
-            sendAck(c)
-          }
           if (!kgpChannel.conns.contains(conn_id)) {
             kgpChannel.conns(conn_id) = mkconn(conn_id, c)
           }
@@ -560,7 +600,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
             }
           }
         }  else {
-          log.info("got old packet " + seq + " expected " + kgpChannel.inSeq)
+          log.info("got old packet " + seq + " expected >" + kgpChannel.inSeq)
         }
 
         kgpChannel.pruneOutBuffer()

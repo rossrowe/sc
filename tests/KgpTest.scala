@@ -42,7 +42,7 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
       val client = mock[KgpClient]
       expecting {
         client.kgpChannel.andReturn(new KgpChannel())
-        client.close_sub(1)
+        client ! CloseSub(1)
       }
 
       whenExecuting(client) {
@@ -57,7 +57,7 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
       val client = mock[KgpClient]
       expecting {
         client.kgpChannel.andReturn(new KgpChannel())
-        client.close_sub(1)
+        client ! CloseSub(1)
       }
 
       whenExecuting(client) {
@@ -73,7 +73,7 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
   describe("KgpChannel") {
     describe("when sending the first packet on the channel") {
       val c = new KgpChannel()
-      val packet = c.keepalivePacket()
+      val packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
       it("starts at sequence number 1") {
         packet._2 should be (1L)
       }
@@ -84,8 +84,8 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
 
     describe("when sending its second packet") {
       val c = new KgpChannel()
-      c.keepalivePacket()
-      val packet = c.keepalivePacket()
+      c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
+      val packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
       it("increments the sequence number to 2") {
         packet._2 should be (2L)
       }
@@ -95,52 +95,12 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
       val c = new KgpChannel()
       it("rolls over to to 0 when it reaches the modulus, and not before") {
         c.outSeq = Kgp.MODULUS - 2
-        var packet = c.keepalivePacket()
+        var packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
         packet._2 should be (Kgp.MODULUS - 2)
-        packet = c.keepalivePacket()
+        packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
         packet._2 should be (Kgp.MODULUS - 1)
-        packet = c.keepalivePacket()
+        packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
         packet._2 should be (0L)
-      }
-    }
-
-    describe("when sending a keepalive") {
-      val c = new KgpChannel()
-      val packet = c.keepalivePacket()
-      it("uses channel 0") {
-        packet._1 should be (0L)
-      }
-      it("uses no control flags") {
-        packet._4 should be (0)
-      }
-      it("sends 'k' as the packet body") {
-        packet._5 should be (wrappedBuffer(Array[Byte]('k')))
-      }
-      it("doesn't buffer the packet for retransmission") {
-        c.outBuffer.length should be (0)
-      }
-    }
-
-    describe("when sending a keepalive ack") {
-      val c = new KgpChannel()
-      c.inSeq = 2
-      c.inAcked = 0
-      val packet = c.ackPacket()
-      it("uses channel 0") {
-        packet._1 should be (0L)
-      }
-      it("uses no control flags") {
-        packet._4 should be (0)
-      }
-      it("sends 'a' as the packet body") {
-        packet._5 should be (wrappedBuffer(Array[Byte]('a')))
-      }
-      it("acks the latest incoming packet") {
-        packet._3 should be (2)
-        c.inAcked should be (2)
-      }
-      it("doesn't buffer the packet for retransmission") {
-        c.outBuffer.length should be (0)
       }
     }
 
@@ -318,4 +278,45 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
       }
     }
   }
+  /*
+       describe("when sending a keepalive") {
+      val c = new KgpChannel()
+      val packet = c.keepalivePacket()
+      it("uses channel 0") {
+        packet._1 should be (0L)
+      }
+      it("uses no control flags") {
+        packet._4 should be (0)
+      }
+      it("sends 'k' as the packet body") {
+        packet._5 should be (wrappedBuffer(Array[Byte]('k')))
+      }
+      it("doesn't buffer the packet for retransmission") {
+        c.outBuffer.length should be (0)
+      }
+    }
+
+    describe("when sending a keepalive ack") {
+      val c = new KgpChannel()
+      c.inSeq = 2
+      c.inAcked = 0
+      val packet = c.ackPacket()
+      it("uses channel 0") {
+        packet._1 should be (0L)
+      }
+      it("uses no control flags") {
+        packet._4 should be (0)
+      }
+      it("sends 'a' as the packet body") {
+        packet._5 should be (wrappedBuffer(Array[Byte]('a')))
+      }
+      it("acks the latest incoming packet") {
+        packet._3 should be (2)
+        c.inAcked should be (2)
+      }
+      it("doesn't buffer the packet for retransmission") {
+        c.outBuffer.length should be (0)
+      }
+    }
+    */
 }
