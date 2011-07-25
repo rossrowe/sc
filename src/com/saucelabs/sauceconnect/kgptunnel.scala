@@ -86,7 +86,7 @@ class KgpTunnel {
     val password = getTunnelSetting("password")
     tunnelConnection = new KgpClient(host, this.ssh_port, this.ports(0).toInt)
     tunnelConnection.start()
-    tunnelConnection ! Connect
+    tunnelConnection.connect()
     //tunnelConnection.authenticateWithPassword(user, password)
     for (index <- 0 until ports.length) {
       val remotePort = Integer.valueOf(tunnel_ports(index))
@@ -123,6 +123,6 @@ class KgpTunnel {
     if (this.readyfile != null) {
       this.readyfile.delete()
     }
-    tunnelConnection ! Close
+    tunnelConnection.close()
   }
 }

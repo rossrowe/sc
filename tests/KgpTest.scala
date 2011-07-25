@@ -42,7 +42,7 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
       val client = mock[KgpClient]
       expecting {
         client.kgpChannel.andReturn(new KgpChannel())
-        client ! CloseSub(1)
+        client.closeSub(1)
       }
 
       whenExecuting(client) {
@@ -57,7 +57,7 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
       val client = mock[KgpClient]
       expecting {
         client.kgpChannel.andReturn(new KgpChannel())
-        client ! CloseSub(1)
+        client.closeSub(1)
       }
 
       whenExecuting(client) {
@@ -73,7 +73,8 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
   describe("KgpChannel") {
     describe("when sending the first packet on the channel") {
       val c = new KgpChannel()
-      val packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
+      val packets = c.packetize(1, wrappedBuffer(Array[Byte]('x')))
+      val packet = packets(0)
       it("starts at sequence number 1") {
         packet._2 should be (1L)
       }
@@ -84,8 +85,9 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
 
     describe("when sending its second packet") {
       val c = new KgpChannel()
-      c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
-      val packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
+      c.packetize(1, wrappedBuffer(Array[Byte]('x')))
+      val packets = c.packetize(1, wrappedBuffer(Array[Byte]('x')))
+      val packet = packets(0)
       it("increments the sequence number to 2") {
         packet._2 should be (2L)
       }
@@ -95,11 +97,12 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
       val c = new KgpChannel()
       it("rolls over to to 0 when it reaches the modulus, and not before") {
         c.outSeq = Kgp.MODULUS - 2
-        var packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
+        val packets = c.packetize(1, wrappedBuffer(Array[Byte]('x')))
+        var packet = packets(0)
         packet._2 should be (Kgp.MODULUS - 2)
-        packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
+        packet = c.packetize(1, wrappedBuffer(Array[Byte]('x')))(0)
         packet._2 should be (Kgp.MODULUS - 1)
-        packet = c.nextPacket(1, wrappedBuffer(Array[Byte]('x')))
+        packet = c.packetize(1, wrappedBuffer(Array[Byte]('x')))(0)
         packet._2 should be (0L)
       }
     }
@@ -125,7 +128,12 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
     describe("when sending a data packet") {
       val c = new KgpChannel()
       val buf = wrappedBuffer(Array[Byte]('h', 'i'))
-      val packet = c.nextPacket(4, buf)
+      val packets = c.packetize(4, buf)
+      it("should make a single packet below the length limit") {
+        packets.length should be (1)
+      }
+      buf.resetReaderIndex()
+      val packet = packets(0)
       it("sends the packet on the requested channel") {
         packet._1 should be (4)
       }
@@ -145,8 +153,9 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
       val c = new KgpChannel()
       val buf = wrappedBuffer(Array[Byte]('h', 'i'))
       it("removes all packets that have been acked, and none that haven't") {
-        val packet1 = c.nextPacket(5, buf)
-        val packet2 = c.nextPacket(6, buf)
+        val packet1 = c.packetize(5, buf)(0)
+        buf.resetReaderIndex()
+        val packet2 = c.packetize(6, buf)(0)
         c.outAcked = packet1._2 // seq for this packet
         c.pruneOutBuffer()
         c.outBuffer.length should be (1)

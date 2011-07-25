@@ -18,7 +18,7 @@ object TunnelClient {
 
     val client = new KgpClient(host, port, forwardPort)
     client.start()
-    client ! Connect
+    client.connect()
     // Wait until the connection is closed or the connection attempt fails.
     //future.getChannel.getCloseFuture.awaitUninterruptibly
 

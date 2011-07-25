@@ -32,6 +32,7 @@ import org.jboss.netty.util.CharsetUtil._
 import org.jboss.netty.channel.socket.ClientSocketChannelFactory
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import org.jboss.netty.util.HashedWheelTimer
+
 import java.nio.ByteOrder
 import java.net.{InetSocketAddress, ConnectException}
 import java.io.IOException
@@ -101,7 +102,7 @@ class KgpConn(id: Long, client: KgpClient) {
   def localShutdown() {
     if (!isLocalShutdown) {
       log.info("doing local shutdown for conn " + id)
-      client ! CloseSub(id)
+      client.closeSub(id)
       isLocalShutdown = true
     }
     if (isRemoteShutdown) {
@@ -313,7 +314,7 @@ class ProxyConn(id: Long,
       val msg = e.getMessage.asInstanceOf[ChannelBuffer]
       //System.out.log.info("<<< " + ChannelBuffers.hexDump(msg))
       if (tcpConnected) {
-        client ! Send(id, msg)
+        client.send(id, msg)
       }
     }
 
@@ -332,13 +333,14 @@ class ProxyConn(id: Long,
 
 }
 
-case object Connect
-case class HandleConnected(channel: Channel)
-case class HandleClosed(channel: Channel)
-case class Send(conn_id: Long,  msg: ChannelBuffer)
-case class CloseSub(conn_id: Long)
-case object Close
 class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
+  case object Connect
+  case class HandleConnected(channel: Channel)
+  case class HandleClosed(channel: Channel)
+  case class Send(conn_id: Long,  msg: ChannelBuffer)
+  case class CloseSub(conn_id: Long)
+  case object Close
+
   private val log = LogFactory.getLog(this.getClass)
 
   val cf = new NioClientSocketChannelFactory(
@@ -359,6 +361,15 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
   def after(ms:Int)(f: => Unit) {
     timer.newTimeout(f _, ms, TimeUnit.MILLISECONDS)
   }
+
+  // the actor API is not testable with EasyMock, and kind of poorly
+  // thought out in general
+  def connect() { this ! Connect }
+  def handleConnected(channel: Channel) { this ! HandleConnected(channel) }
+  def handleClosed(channel: Channel) { this ! HandleClosed(channel) }
+  def send(conn_id: Long, msg: ChannelBuffer) { this ! Send(conn_id, msg) }
+  def closeSub(conn_id: Long) { this ! CloseSub(conn_id) }
+  def close() { this ! Close }
 
   def act() {
     loop {
@@ -506,7 +517,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
 
     keepaliveTimer.newTimeout(keepaliveHandler _, 1000, TimeUnit.MILLISECONDS)
 
-    client ! HandleConnected(channel)
+    client.handleConnected(channel)
   }
 
   override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
@@ -610,7 +621,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
     log.info("connection to Sauce Connect server closed")
-    client ! HandleClosed(e.getChannel)
+    client.handleClosed(e.getChannel)
     if (keepaliveTimer != null) {
       keepaliveTimer.stop()
     }
