@@ -22,10 +22,9 @@ import org.apache.commons.logging.Log
 import org.mortbay.log.LogFactory
 import org.python.core._
 
-import com.saucelabs.kgp.{KgpClient, Connect, Close}
+import com.saucelabs.kgp.{KgpClient, Connect, Close, ProxyServer}
 
 class KgpTunnel {
-  println("instantiating KGP tunnel")
   private val MAX_RECONNECT_ATTEMPTS = 3
   private val log = LogFactory.getLog(this.getClass)
 
@@ -37,6 +36,7 @@ class KgpTunnel {
   var use_ssh_config = false
   var debug = false
   var ssh_port = 0
+  var se_port = 0
 
   private var tunnelConnection:KgpClient = null
   private var readyfile:File = null
@@ -74,7 +74,7 @@ class KgpTunnel {
           Thread.sleep(health_check_interval - (System.currentTimeMillis()-start))
         }
       } else {
-        println("health check failed")
+        log.info("health check failed")
         //reconnect()
       }
     }
@@ -84,9 +84,17 @@ class KgpTunnel {
     val host = getTunnelSetting("host")
     val user = getTunnelSetting("user")
     val password = getTunnelSetting("password")
-    tunnelConnection = new KgpClient(host, this.ssh_port, this.ports(0).toInt)
+    log.info("KGP connecting to " + host + " as " + user)
+
+    tunnelConnection = new KgpClient(host,
+                                     this.ssh_port,
+                                     this.ports(0).toInt,
+                                     "{\"username\": \"" + user + "\", \"access_key\": \"" + password + "\"}")
     tunnelConnection.start()
     tunnelConnection.connect()
+    val proxyServer = new ProxyServer(tunnelConnection, this.se_port)
+    proxyServer.serve()
+    log.info("Selenium proxy listening on port " + this.se_port)
     //tunnelConnection.authenticateWithPassword(user, password)
     for (index <- 0 until ports.length) {
       val remotePort = Integer.valueOf(tunnel_ports(index))

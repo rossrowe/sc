@@ -1,4 +1,4 @@
-import com.saucelabs.kgp.{KgpClient, Connect}
+import com.saucelabs.kgp.{KgpClient, Connect, ProxyServer}
 
 object TunnelClient {
 
@@ -16,9 +16,11 @@ object TunnelClient {
     val port = args(1).toInt
     val forwardPort = args(2).toInt
 
-    val client = new KgpClient(host, port, forwardPort)
+    val client = new KgpClient(host, port, forwardPort, "{\"username\": \"sah\", \"access_key\": \"1196e57a-b7b6-4290-9bf7-9424b9ebc0d0\"}")
     client.start()
     client.connect()
+    val proxyServer = new ProxyServer(client, 4445)
+    proxyServer.serve()
     // Wait until the connection is closed or the connection attempt fails.
     //future.getChannel.getCloseFuture.awaitUninterruptibly
 

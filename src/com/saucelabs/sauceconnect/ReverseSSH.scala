@@ -37,6 +37,7 @@ class ReverseSSH {
   var use_ssh_config = false
   var debug = false
   var ssh_port = 0
+  var se_port = 0
 
   private var tunnelConnection:Connection = null
   private var readyfile:File = null

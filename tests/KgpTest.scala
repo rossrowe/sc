@@ -205,7 +205,7 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
           case buf: ChannelBuffer => {
             val (version, id) = kpd.decode(ctx, channel, buf)
             version should be (Kgp.VERSION)
-            id should be (c.id)
+            id should be (c.localEndpointId)
           }
         }
         kpd.initialized should be (true)
@@ -266,7 +266,7 @@ class KgpTest extends Spec with ShouldMatchers with EasyMockSugar {
         case buf: ChannelBuffer => {
           val (version, id) = kpd.decode(ctx, channel, buf)
           version should be (Kgp.VERSION)
-          id should be (c.id)
+          id should be (c.localEndpointId)
         }
       }
     }

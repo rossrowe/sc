@@ -98,6 +98,9 @@ public class SauceConnect {
         options.addOption("s", "ssh", false, null);
         options.addOption("d", "debug", false, "Enable verbose debugging");
         options.addOption("l", "lite", false, null);
+        Option sePort = new Option("P", "seport", true, null);
+        sePort.setArgName("PORT");
+        options.addOption(sePort);
         try {
             CommandLineParser parser = new PosixParser();
             CommandLine result = parser.parse(options, args);
@@ -154,6 +157,10 @@ public class SauceConnect {
             }
             if (options.hasOption('s')) {
                 args.add(new PyString("--ssh"));
+            }
+            if (options.hasOption('P')) {
+                args.add(new PyString("--se-port"));
+                args.add(new PyString(options.getOptionValue('P')));
             }
         }
 

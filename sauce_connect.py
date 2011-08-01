@@ -367,7 +367,7 @@ class ReverseSSHError(Exception):
 class ReverseSSH(object):
 
     def __init__(self, tunnel, host, ports, tunnel_ports, ssh_port,
-                 use_ssh_config=False, debug=False):
+                 use_ssh_config=False, debug=False, se_port=None):
         self.tunnel = tunnel
         self.host = host
         self.ports = ports
@@ -743,6 +743,8 @@ Performance tip:
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--ssh", default=False, action="store_true",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--se-port", default=4445, type="int",
+                  help=optparse.SUPPRESS_HELP)
     op.add_option_group(og)
 
     og = optparse.OptionGroup(op, "Script debugging options")
@@ -937,7 +939,8 @@ def run(options, dependency_versions=None,
                       ports=options.ports, tunnel_ports=options.tunnel_ports,
                       ssh_port=options.ssh_port,
                       use_ssh_config=options.use_ssh_config,
-                      debug=options.debug_ssh)
+                      debug=options.debug_ssh,
+                      se_port=options.se_port)
     try:
         ssh.run(options.readyfile)
     except (ReverseSSHError, TunnelMachineError), e:

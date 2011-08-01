@@ -95,7 +95,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
       return
     }
     val url = baseRequest.getUri.toString
-    log.info("proxying " + url)
+    log.debug("proxying " + url)
     try {
 
       // Do we proxy this?
@@ -116,7 +116,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     }
     catch {
       case e:Exception => {
-        log.debug("Could not proxy " + url, e)
+        log.warn("Could not proxy " + url, e)
         if (!response.isCommitted())
           response.sendError(400, "Could not proxy " + url + "\n" + e)
       }
@@ -362,7 +362,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
           throw new RuntimeException("Couldn't establish SSL handshake.  Try using trustAllSSLCertificates.\n" + e.getLocalizedMessage(), e)
         }
       }
-      log.info("responding to request for " + url + " with code " + code)
+      log.debug("responding to request for " + url + " with code " + code)
       response.setStatus(code)
       //response.setReason(http.getResponseMessage())
 

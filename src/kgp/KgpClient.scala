@@ -3,7 +3,7 @@ package com.saucelabs.kgp
 import org.apache.commons.logging.Log
 import org.apache.commons.logging.LogFactory
 
-import org.jboss.netty.bootstrap.ClientBootstrap
+import org.jboss.netty.bootstrap.{ClientBootstrap, ServerBootstrap}
 import org.jboss.netty.buffer.{ ChannelBuffer, ChannelBuffers }
 import org.jboss.netty.buffer.ChannelBuffers._
 import org.jboss.netty.channel.{
@@ -30,17 +30,40 @@ import org.jboss.netty.handler.codec.oneone.OneToOneEncoder
 import org.jboss.netty.util.{Timeout, TimerTask, Timer}
 import org.jboss.netty.util.CharsetUtil._
 import org.jboss.netty.channel.socket.ClientSocketChannelFactory
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
+import org.jboss.netty.channel.socket.nio.{NioClientSocketChannelFactory,
+                                           NioServerSocketChannelFactory}
 import org.jboss.netty.util.HashedWheelTimer
-
+import org.jboss.netty.handler.ssl.SslHandler
+import javax.net.ssl.ManagerFactoryParameters
+import javax.net.ssl.TrustManager
+import javax.net.ssl.TrustManagerFactorySpi
+import javax.net.ssl.X509TrustManager
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLEngine
+import javax.net.ssl.TrustManager
+import java.security.KeyStore
+import java.security.cert.{X509Certificate, CertificateException}
 import java.nio.ByteOrder
 import java.net.{InetSocketAddress, ConnectException}
-import java.io.IOException
+import java.io.{IOException, ByteArrayInputStream}
 import java.util.concurrent.{TimeUnit, Executors}
 import java.util.Date
 
+import java.util.Collections
+import java.util.ArrayList
+import java.io.FileInputStream
+import java.security.cert.{CertPath,
+                           CertPathValidator,
+                           Certificate,
+                           CertificateFactory,
+                           PKIXCertPathValidatorResult,
+                           PKIXParameters,
+                           TrustAnchor,
+                           X509Certificate}
+
 import util.control.Breaks._
 import util.Random
+import scala.util.parsing.json.JSON
 import collection.mutable.{Map, ListBuffer}
 import actors.Actor
 import actors.Actor._
@@ -73,9 +96,33 @@ object Kgp {
   val MAX_CHAN = MODULUS - 1
 
   val VERSION = (0, 1, 0)
+
+  val ROOT_CERT = """-----BEGIN CERTIFICATE-----
+MIIDyzCCAzSgAwIBAgIJAJIWskl30Xj/MA0GCSqGSIb3DQEBBAUAMIGgMRcwFQYD
+VQQKEw5TYXVjZSBMYWJzIEluYzETMBEGA1UECxMKT3BlcmF0aW9uczEhMB8GCSqG
+SIb3DQEJARYSaGVscEBzYXVjZWxhYnMuY29tMRYwFAYDVQQHEw1TYW4gRnJhbmNp
+c2NvMQswCQYDVQQIEwJDQTELMAkGA1UEBhMCVVMxGzAZBgNVBAMTEm1ha2kuc2F1
+Y2VsYWJzLmNvbTAeFw0xMTA3MjkwMjA0NTNaFw0yMTA3MjYwMjA0NTNaMIGgMRcw
+FQYDVQQKEw5TYXVjZSBMYWJzIEluYzETMBEGA1UECxMKT3BlcmF0aW9uczEhMB8G
+CSqGSIb3DQEJARYSaGVscEBzYXVjZWxhYnMuY29tMRYwFAYDVQQHEw1TYW4gRnJh
+bmNpc2NvMQswCQYDVQQIEwJDQTELMAkGA1UEBhMCVVMxGzAZBgNVBAMTEm1ha2ku
+c2F1Y2VsYWJzLmNvbTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAvWe6aUbw
+kzNBLFZvWg85S6CIhpyFS2Gm9+LphTcbjaNmLBYbim6m/YjEqxFR+ca+Ad5UxMDF
+oGEGj4mlf949UeN+IBvRkDPLVlGX6SPGlYSOreEQq9F51nOLWqCK4Xko1GzVob8Z
+nu911AgYTRWvBrIJ449MlXkP8IbB19Pj/50CAwEAAaOCAQkwggEFMAwGA1UdEwQF
+MAMBAf8wHQYDVR0OBBYEFGQkIoAxvVJoOKjFx3cCXGdVkX7TMIHVBgNVHSMEgc0w
+gcqAFGQkIoAxvVJoOKjFx3cCXGdVkX7ToYGmpIGjMIGgMRcwFQYDVQQKEw5TYXVj
+ZSBMYWJzIEluYzETMBEGA1UECxMKT3BlcmF0aW9uczEhMB8GCSqGSIb3DQEJARYS
+aGVscEBzYXVjZWxhYnMuY29tMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2NvMQswCQYD
+VQQIEwJDQTELMAkGA1UEBhMCVVMxGzAZBgNVBAMTEm1ha2kuc2F1Y2VsYWJzLmNv
+bYIJAJIWskl30Xj/MA0GCSqGSIb3DQEBBAUAA4GBALN0FPHaecUO9moA5CHb5wK+
+X6Lpo0c3Q4Gu2NWtDsuvy70j5KCRGXG89truhcCPxsiYwk9Qvu3dt7u8WgEzcWHY
+82/XJDMI9VLIJadknI7qyl7nO+ES3dSFgG0C+rUhZm4CT5yKlaQgF+uU431lTRzM
+mzAghC0MmMDOJIiaeL+B
+-----END CERTIFICATE-----"""
 }
 
-class KgpConn(id: Long, client: KgpClient) {
+class KgpConn(val id: Long, client: KgpClient) {
   private val log = LogFactory.getLog(this.getClass)
   var isRemoteShutdown = false
   var isLocalShutdown = false
@@ -86,27 +133,27 @@ class KgpConn(id: Long, client: KgpClient) {
   }
 
   def dataReceived(msg: ChannelBuffer) {
-    log.info("dataReceived not handled")
+    log.warn("dataReceived not handled")
   }
 
   def close() {
-    log.info("close not handled")
+    log.warn("close not handled")
   }
 
   def remoteShutdown() {
-    log.info("got remote shutdown for conn " + id)
+    log.debug("got remote shutdown for conn " + id)
     isRemoteShutdown = true
     localShutdown()
   }
 
   def localShutdown() {
     if (!isLocalShutdown) {
-      log.info("doing local shutdown for conn " + id)
+      log.debug("doing local shutdown for conn " + id)
       client.closeSub(id)
       isLocalShutdown = true
     }
     if (isRemoteShutdown) {
-      log.info("finished closing " + id + ", 1 of " + kgpChannel.conns.size + " kgp-tunneled connections")
+      log.debug("finished closing " + id + ", 1 of " + kgpChannel.conns.size + " kgp-tunneled connections")
       kgpChannel.conns -= this.id
     }
   }
@@ -118,15 +165,40 @@ class KgpChannel {
 
   private val log = LogFactory.getLog(this.getClass)
 
-  val id = new Array[Byte](16)
+  val localEndpointId = new Array[Byte](16)
   val _r = new Random()
-  _r.nextBytes(id)
+  _r.nextBytes(localEndpointId)
+  val localEndpointNum = BigInt(ChannelBuffers.hexDump(wrappedBuffer(localEndpointId)), 16)
   var outSeq: Long = 1
   var outAcked: Long = 0
   var inSeq: Long = 0
   var inAcked: Long = 0
   val conns = Map[Long, KgpConn]()
   var outBuffer = ListBuffer[Packet]()
+  var remoteEndpointId = Array[Byte](16)
+  var remoteEndpointNum = BigInt(0)
+
+  def genConnId(): Long = {
+    var minConnId = 1L
+    var maxConnId = (math.pow(2, 31).toLong) - 1L
+    if (remoteEndpointNum < localEndpointNum) {
+      minConnId += math.pow(2, 31).toLong
+      maxConnId += math.pow(2, 31).toLong
+    }
+    var i = minConnId
+    breakable {
+      while (i < maxConnId) {
+        if (!conns.contains(i)) {
+          break
+        }
+        i += 1
+      }
+    }
+    if (conns.contains(i)) {
+      throw new Exception("channel out of connections")
+    }
+    return i
+  }
 
   def tickOutbound() {
     outSeq += 1
@@ -185,13 +257,23 @@ class KgpPacketDecoder extends FrameDecoder {
                      buffer.readUnsignedInt(),
                      buffer.readUnsignedInt())
       log.info(version)
-      buffer.readUnsignedInt()
-      val endpoint_id = new Array[Byte](16)
-      buffer.readBytes(endpoint_id)
-      log.info(ChannelBuffers.hexDump(wrappedBuffer(endpoint_id)))
+      val endpointId = new Array[Byte](16)
+      buffer.readBytes(endpointId)
+      log.info(ChannelBuffers.hexDump(wrappedBuffer(endpointId)))
+
+      val metadataLen = buffer.readUnsignedInt()
+      if (buffer.readableBytes < metadataLen) {
+        buffer.resetReaderIndex()
+        return null
+      }
+
+      val metadataJson = new Array[Byte](metadataLen.toInt)
+      buffer.readBytes(metadataJson)
+      log.info(metadataJson.toString)
+      val metadata = JSON.parseFull(new String(metadataJson))
 
       initialized = true
-      return (version, endpoint_id)
+      return (version, endpointId, metadata)
     }
 
     if (buffer.readableBytes < Kgp.HEADER_LEN) {
@@ -224,15 +306,19 @@ class KgpPacketEncoder extends OneToOneEncoder {
 
   override def encode(ctx: ChannelHandlerContext, channel: Channel, msg: Object): Object = {
     msg match {
-      case ("announce", kgpChannel: KgpChannel) => {
-        log.info("announcing as " + ChannelBuffers.hexDump(wrappedBuffer(kgpChannel.id)))
-        val b = buffer(Kgp.INTRO_LEN)
+      case ("announce",
+            metadataJson: String,
+            kgpChannel: KgpChannel) => {
+        log.info("announcing as " + ChannelBuffers.hexDump(wrappedBuffer(kgpChannel.localEndpointId)))
+        val b = buffer(Kgp.INTRO_LEN + metadataJson.length)
         b.writeBytes(copiedBuffer("kgp", UTF_8))
         b.writeInt(Kgp.VERSION._1)
         b.writeInt(Kgp.VERSION._2)
         b.writeInt(Kgp.VERSION._3)
-        b.writeInt(0)
-        b.writeBytes(kgpChannel.id)
+        b.writeBytes(kgpChannel.localEndpointId)
+        val md = copiedBuffer(metadataJson, UTF_8)
+        b.writeInt(md.readableBytes)
+        b.writeBytes(md)
         return b
       }
       case (conn: Long, seq: Long, ack: Long, ctrl: Int, msg: ChannelBuffer) => {
@@ -245,7 +331,6 @@ class KgpPacketEncoder extends OneToOneEncoder {
         return wrappedBuffer(b, msg)
       }
       case "close" => {
-        // FIXME: close this thing
         return wrappedBuffer(Array[Byte]())
       }
     }
@@ -253,10 +338,10 @@ class KgpPacketEncoder extends OneToOneEncoder {
 }
 
 
-class ProxyConn(id: Long,
-                client: KgpClient,
-                cf: ClientSocketChannelFactory,
-                remotePort: Int) extends KgpConn (id, client) {
+class ProxyClientConn(id: Long,
+                      client: KgpClient,
+                      cf: ClientSocketChannelFactory,
+                      remotePort: Int) extends KgpConn (id, client) {
   implicit def ftofuturelistener(f: () => Unit) = new ChannelFutureListener {
     override def operationComplete(future: ChannelFuture) = f()
   }
@@ -266,11 +351,11 @@ class ProxyConn(id: Long,
   @volatile
   private var tcpChannel: Channel = null
   var tcpConnected = false
-  val outBuffer: ListBuffer[ChannelBuffer] = ListBuffer()
+  val outBuffer = ListBuffer[ChannelBuffer]()
 
   val remoteHost = "localhost"
 
-  log.info("connecting " + id + " to proxied tcp server " + remoteHost + ":" + remotePort)
+  log.debug("connecting " + id + " to proxied tcp server " + remoteHost + ":" + remotePort)
 
   // Start the connection attempt.
   val cb = new ClientBootstrap(cf)
@@ -284,8 +369,9 @@ class ProxyConn(id: Long,
       for (msg <- outBuffer) {
         tcpChannel.write(msg)
       }
+      outBuffer.clear()
     } else {
-      log.info("connection " + id + " to proxied tcp server failed")
+      log.warn("connection " + id + " to proxied tcp server failed")
       localShutdown()
     }
   })
@@ -301,7 +387,7 @@ class ProxyConn(id: Long,
 
   override def localShutdown {
     if (tcpConnected) {
-      log.info("kgp-tunneled connection closed, closing proxied tcp connection")
+      log.debug("kgp-tunneled connection closed, closing proxied tcp connection")
       tcpChannel.close() // channelClosed will shut us down when it's done
     } else {
       super.localShutdown()
@@ -320,7 +406,7 @@ class ProxyConn(id: Long,
 
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       if (tcpConnected) {
-        log.info("proxied tcp connection closed, closing kgp-tunneled connection")
+        log.debug("proxied tcp connection closed, closing kgp-tunneled connection")
         tcpConnected = false
         localShutdown()
       }
@@ -333,12 +419,162 @@ class ProxyConn(id: Long,
 
 }
 
-class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
+
+class ProxyServerConn(id: Long,
+                      client: KgpClient,
+                      tcpChannel: Channel) extends KgpConn (id, client) {
+  implicit def ftofuturelistener(f: () => Unit) = new ChannelFutureListener {
+    override def operationComplete(future: ChannelFuture) = f()
+  }
+
+  private val log = LogFactory.getLog(this.getClass)
+
+  var tcpConnected = false
+
+  override def dataReceived(msg: ChannelBuffer) {
+    if (tcpConnected) {
+      //log.info("kgp -> tcp: " + msg.toString(UTF_8))
+      tcpChannel.write(msg)
+    } else {
+      log.warn("FAILING kgp->tcp: "+ msg.toString(UTF_8))
+    }
+  }
+
+  override def localShutdown {
+    if (tcpConnected) {
+      //log.info("kgp-tunneled connection closed, closing proxied tcp connection")
+      tcpChannel.close() // channelClosed will shut us down when it's done
+    } else {
+      super.localShutdown()
+    }
+  }
+
+
+}
+
+
+class ProxyTcpHandler(client: KgpClient) extends SimpleChannelUpstreamHandler {
+  private val log = LogFactory.getLog(this.getClass)
+
+  var kgpConn: ProxyServerConn = null
+  val outBuffer = ListBuffer[ChannelBuffer]()
+
+  override def channelConnected(ctx: ChannelHandlerContext,
+                                e: ChannelStateEvent) {
+    val inboundChannel = e.getChannel
+    val connId = client.kgpChannel.genConnId()
+    log.debug("connection from tcp client, proxying through conn " + connId)
+
+    kgpConn = new ProxyServerConn(connId, client, inboundChannel)
+    kgpConn.tcpConnected = true
+    client.kgpChannel.conns(connId) = kgpConn
+    for (msg <- outBuffer) {
+      client.send(kgpConn.id, msg)
+    }
+    outBuffer.clear()
+  }
+
+  override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
+    val msg = e.getMessage.asInstanceOf[ChannelBuffer]
+    //System.out.log.info("<<< " + ChannelBuffers.hexDump(msg))
+    if (kgpConn != null && kgpConn.tcpConnected) {
+      for (bufMsg <- outBuffer) {
+        // FIXME: does this actually happen?
+        client.send(kgpConn.id, bufMsg)
+      }
+      outBuffer.clear()
+      client.send(kgpConn.id, msg)
+      //log.info("tcp -> kgp: " + msg.toString(UTF_8))
+    } else {
+      log.warn("BUFFERING tcp->kgp: "+ msg.toString(UTF_8))
+      outBuffer += msg
+    }
+  }
+
+  override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
+    for (bufMsg <- outBuffer) {
+      // FIXME: does this actually happen?
+      client.send(kgpConn.id, bufMsg)
+    }
+    outBuffer.clear()
+    if (kgpConn.tcpConnected) {
+      //log.info("proxied tcp connection closed, closing kgp-tunneled connection")
+      kgpConn.tcpConnected = false
+      kgpConn.localShutdown()
+    }
+  }
+
+  override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
+    e.getCause.printStackTrace
+  }
+}
+
+
+class ProxyServer(client: KgpClient, port: Int) {
+  private val log = LogFactory.getLog(this.getClass)
+  def serve() {
+    try {
+    val cf = new NioServerSocketChannelFactory(
+      Executors.newSingleThreadScheduledExecutor,
+      Executors.newSingleThreadScheduledExecutor,
+      1)
+    val bootstrap = new ServerBootstrap(cf)
+    bootstrap.setPipelineFactory(new ChannelPipelineFactory {
+      override def getPipeline: ChannelPipeline = {
+        val handler = new ProxyTcpHandler(client)
+        Channels.pipeline(handler)
+      }
+    })
+    bootstrap.bind(new InetSocketAddress(port))
+    } catch {
+      case e: Exception => {
+        log.warn("Exception proxying: " + e)
+      }
+    }
+  }
+}
+
+
+class KgpClientTrustManager() extends X509TrustManager {
+  private val log = LogFactory.getLog(this.getClass)
+
+  // oh, java
+  val certFactory = CertificateFactory.getInstance("X.509")
+  val rootCert = certFactory.generateCertificate(new ByteArrayInputStream(Kgp.ROOT_CERT.getBytes))
+  val anchor = new TrustAnchor(rootCert.asInstanceOf[X509Certificate], null)
+  val params = new PKIXParameters(Collections.singleton(anchor))
+  params.setRevocationEnabled(false)
+  val certPathValidator = CertPathValidator.getInstance("PKIX")
+
+  def getAcceptedIssuers(): Array[X509Certificate] = {
+    return Array[X509Certificate]()
+  }
+
+  def checkClientTrusted(chain: Array[X509Certificate], authType: String) {
+    throw new CertificateException("client certificates are not accepted")
+  }
+
+  def checkServerTrusted(chain: Array[X509Certificate], authType: String) {
+    val chainlist = new ArrayList[Certificate]
+    for (c <- chain) {
+      log.info(
+        "Checking certificate: " + c.getSubjectDN())
+      chainlist.add(c)
+    }
+
+    val certPath = certFactory.generateCertPath(chainlist)
+    certPathValidator.validate(certPath, params)
+    log.info("certificate validated")
+  }
+}
+
+
+class KgpClient(host: String, port: Int, forwardPort: Int, val metadataJson: String) extends Actor {
   case object Connect
   case class HandleConnected(channel: Channel)
   case class HandleClosed(channel: Channel)
-  case class Send(conn_id: Long,  msg: ChannelBuffer)
-  case class CloseSub(conn_id: Long)
+  case class Send(connId: Long,  msg: ChannelBuffer)
+  case class CloseSub(connId: Long)
   case object Close
 
   private val log = LogFactory.getLog(this.getClass)
@@ -352,6 +588,7 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
   val timer = new HashedWheelTimer()
   var currentChannel: Channel = null
   val kgpChannel = new KgpChannel()
+  val trustManager = new KgpClientTrustManager()
   val _r = new Random()
 
   implicit def ftotimertask(f: () => Unit) = new TimerTask {
@@ -367,8 +604,8 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
   def connect() { this ! Connect }
   def handleConnected(channel: Channel) { this ! HandleConnected(channel) }
   def handleClosed(channel: Channel) { this ! HandleClosed(channel) }
-  def send(conn_id: Long, msg: ChannelBuffer) { this ! Send(conn_id, msg) }
-  def closeSub(conn_id: Long) { this ! CloseSub(conn_id) }
+  def send(connId: Long, msg: ChannelBuffer) { this ! Send(connId, msg) }
+  def closeSub(connId: Long) { this ! CloseSub(connId) }
   def close() { this ! Close }
 
   def act() {
@@ -377,14 +614,21 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
         case Connect => {
           log.info("connecting to Sauce Connect server")
           def mkconn(id: Long, channel: Channel): KgpConn = {
-            return new ProxyConn(id, this, cf, forwardPort)
+            return new ProxyClientConn(id, this, cf, forwardPort)
           }
 
+          val clientContext = SSLContext.getInstance("TLS")
+          clientContext.init(null,
+                             Array[TrustManager](trustManager),
+                             null)
+          val sslengine = clientContext.createSSLEngine()
+          sslengine.setUseClientMode(true)
           val handler = new KgpClientHandler(this, mkconn)
           // Set up the pipeline factory.
           bootstrap.setPipelineFactory(new ChannelPipelineFactory {
             override def getPipeline: ChannelPipeline = {
-              Channels.pipeline(new KgpPacketDecoder(),
+              Channels.pipeline(new SslHandler(sslengine),
+                                new KgpPacketDecoder(),
                                 handler,
                                 new KgpPacketEncoder())
             }
@@ -417,8 +661,8 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
           }
         }
 
-        case Send(conn_id: Long,  msg: ChannelBuffer) => {
-          val packets = kgpChannel.packetize(conn_id, msg)
+        case Send(connId: Long,  msg: ChannelBuffer) => {
+          val packets = kgpChannel.packetize(connId, msg)
           if (currentChannel != null) {
             for (packet <- packets) {
               currentChannel.write(packet)
@@ -429,8 +673,8 @@ class KgpClient(host: String, port: Int, forwardPort: Int) extends Actor {
           }
         }
 
-        case CloseSub(conn_id: Long) => {
-          val packet = kgpChannel.closeConnPacket(conn_id)
+        case CloseSub(connId: Long) => {
+          val packet = kgpChannel.closeConnPacket(connId)
           if (currentChannel != null) {
             currentChannel.write(packet)
             //if (_r.nextFloat < 0.05) {
@@ -467,6 +711,10 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   val kgpChannel = client.kgpChannel
   val _r = new Random()
 
+  implicit def ftofuturelistener(f: () => Unit) = new ChannelFutureListener {
+    override def operationComplete(future: ChannelFuture) = f()
+  }
+
   implicit def ftotimertask(f: () => Unit) = new TimerTask {
     def run(timeout: Timeout) = f()
   }
@@ -489,19 +737,25 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
 
   override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
     log.info("connected!")
+    val sslHandler = ctx.getPipeline().get(classOf[SslHandler])
+    sslHandler.handshake().addListener(() => {
+      channelHandShook(e.getChannel)
+    })
+  }
+
+  def channelHandShook(channel: Channel) = {
     if (keepaliveTimer != null) {
       log.info("keepalive timer still going when reconnecting, stopping it and making a new one")
       keepaliveTimer.stop()
     }
     keepaliveTimer = new HashedWheelTimer()
-    val channel = e.getChannel
-    channel.write(("announce", kgpChannel))
+    channel.write(("announce", client.metadataJson, kgpChannel))
     lastIncoming = System.currentTimeMillis
     def keepaliveHandler() {
       if (keepaliveOutSeq %> keepaliveOutAcked) {
         val now = System.currentTimeMillis
         if (now - lastIncoming > calculatedTimeout) {
-          log.info("Sauce Connect connection stalled! " + keepaliveOutAcked + '/' + keepaliveOutSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + minAckTime + " " + ctime())
+          log.warn("Sauce Connect connection stalled! " + keepaliveOutAcked + '/' + keepaliveOutSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + minAckTime + " " + ctime())
           channel.write("close").addListener(ChannelFutureListener.CLOSE)
           return
         } else {
@@ -521,7 +775,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   }
 
   override def channelDisconnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
-    log.info("disconnected from Sauce Connect server")
+    log.warn("disconnected from Sauce Connect server")
   }
 
   implicit def longToKgpModLong(x: Long): KgpModLong = new KgpModLong(x)
@@ -556,10 +810,12 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
         calculatedTimeout = (System.currentTimeMillis - lastKeepaliveTime) + minAckTime + 2000
         //log.info("new calculated timeout: " + calculatedTimeout)
       } else {
-        log.info("received an out-of-date ack " + seq + " " + keepaliveOutSeq)
+        if (seq - keepaliveOutSeq > 50) {
+          log.warn("received a very out-of-date ack " + seq + " " + keepaliveOutSeq)
+        }
       }
     } else {
-      log.info("unknown control message:" + " " + msg.toString(UTF_8))
+      log.warn("unknown control message:" + " " + msg.toString(UTF_8))
     }
   }
 
@@ -574,31 +830,33 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     //  c.close()
     //}
     e.getMessage match {
-      case (ver: (Int, Int, Int), id: Array[Byte]) => {
+      case (ver: (Int, Int, Int), id: Array[Byte], metadata: Option[Any]) => {
         log.info("got announcement:" + ver + " " + ChannelBuffers.hexDump(wrappedBuffer(id)))
+        kgpChannel.remoteEndpointId = id
+        kgpChannel.remoteEndpointNum = BigInt(ChannelBuffers.hexDump(wrappedBuffer(kgpChannel.remoteEndpointId)), 16)
       }
-      case (conn_id: Long, seq: Long, ack: Long, ctrl: Int, msg: ChannelBuffer) => {
+      case (connId: Long, seq: Long, ack: Long, ctrl: Int, msg: ChannelBuffer) => {
         lastIncoming = System.currentTimeMillis
-        //log.info("got packet " + seq + " on " + conn_id + " " + ctime())
+        //log.info("got packet " + seq + " on " + connId + " " + ctime())
 
         if (ack %> kgpChannel.outAcked) {
           //log.info("got an ack on my output up to " + ack + " - was " + kgpChannel.outAcked)
           kgpChannel.outAcked = ack
         }
-        if (conn_id == 0) {
+        if (connId == 0) {
           handleConnPacket(c, seq, ack, msg)
         } else if (seq %> kgpChannel.inSeq) {
           val nextSeq = (kgpChannel.inSeq + 1) % Kgp.MODULUS
           if (seq %> nextSeq) {
-            log.info("packet skip to " + seq + " expected " + kgpChannel.inSeq)
+            log.warn("packet skip to " + seq + " expected " + kgpChannel.inSeq)
           }
 
           kgpChannel.inSeq = seq
 
-          if (!kgpChannel.conns.contains(conn_id)) {
-            kgpChannel.conns(conn_id) = mkconn(conn_id, c)
+          if (!kgpChannel.conns.contains(connId)) {
+            kgpChannel.conns(connId) = mkconn(connId, c)
           }
-          val conn = kgpChannel.conns(conn_id)
+          val conn = kgpChannel.conns(connId)
           ctrl match {
             case 0 => {
               if (msg.readableBytes > 0) {

@@ -1,4 +1,4 @@
-package com.saucelabs.sauceconnect {
+package com.saucelabs.sauceconnect
 
 abstract class Timeout(millis:Long) extends Thread {
     @volatile
@@ -45,5 +45,4 @@ abstract class Timeout(millis:Long) extends Thread {
 
     @throws(classOf[Exception])
     def longRunningTask()
-}
 }
