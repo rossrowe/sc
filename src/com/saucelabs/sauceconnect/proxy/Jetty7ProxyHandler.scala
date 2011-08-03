@@ -116,7 +116,8 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     }
     catch {
       case e:Exception => {
-        log.warn("Could not proxy " + url, e)
+        log.warn("Could not proxy " + url + ", exception: " + e)
+        e.printStackTrace
         if (!response.isCommitted())
           response.sendError(400, "Could not proxy " + url + "\n" + e)
       }
@@ -321,10 +322,12 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     if (!xForwardedFor)
       connection.addRequestProperty(HttpHeaders.X_FORWARDED_FOR, request.getRemoteAddr())
 
+
     // a little bit of cache control
     val cache_control = request.getHeader(HttpHeaders.CACHE_CONTROL)
-    if (cache_control != null && cache_control.contains("no-cache") || cache_control.contains("no-store"))
+    if (cache_control != null && (cache_control.contains("no-cache") || cache_control.contains("no-store"))) {
       connection.setUseCaches(false)
+    }
 
     // customize Connection
     customizeConnection(request, connection)
