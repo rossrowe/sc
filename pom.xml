@@ -139,11 +139,6 @@
                 <directory>.</directory>
                 <includes>
                     <include>sauce_connect.py</include>
-                </includes>
-            </resource>
-            <resource>
-                <directory>.</directory>
-                <includes>
                     <include>java_urllib2.py</include>
                 </includes>
             </resource>
