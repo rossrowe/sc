@@ -88,7 +88,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
   protected val cache = new LinkedHashMap[String, String]()
 
   override def handle(target:String, baseRequest:Request, request:javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
-    if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod())) {
+    if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod)) {
       val host = request.getRequestURL.toString
       log.debug("CONNECT request for " + host)
       handleConnect(baseRequest, request, response, host)
@@ -267,6 +267,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
   protected def proxyPlainTextRequest(request:Request, response:javax.servlet.http.HttpServletResponse) : Long = {
     val url = new URL(request.getUri.toString)
+
     val connection = url.openConnection()
     connection.setAllowUserInteraction(false)
 
@@ -274,7 +275,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     var http:HttpURLConnection = null
     if (connection.isInstanceOf[HttpURLConnection]) {
       http = connection.asInstanceOf[HttpURLConnection]
-      http.setRequestMethod(request.getMethod())
+      http.setRequestMethod(request.getMethod)
       http.setInstanceFollowRedirects(false)
       if (trustAllSSLCertificates && connection.isInstanceOf[HttpsURLConnection]) {
         TrustEverythingSSLTrustManager.trustAllSSLCertificates(connection.asInstanceOf[HttpsURLConnection])
@@ -286,7 +287,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
     // copy headers
     var xForwardedFor = false
-    var isGet = "GET".equals(request.getMethod())
+    var isGet = "GET".equals(request.getMethod)
     var hasContent = false
     val names = request.getHeaderNames()
     for (name <- names.map(_.asInstanceOf[String])) breakable {
@@ -365,7 +366,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
           throw new RuntimeException("Couldn't establish SSL handshake.  Try using trustAllSSLCertificates.\n" + e.getLocalizedMessage(), e)
         }
       }
-      log.debug("responding to request for " + url + " with code " + code)
+      log.info(request.getMethod + " " + url + " -> " + code)
       response.setStatus(code)
       //response.setReason(http.getResponseMessage())
 

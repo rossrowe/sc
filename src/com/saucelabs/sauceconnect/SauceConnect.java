@@ -38,7 +38,7 @@ import java.util.ArrayList;
  * the {@link #closeTunnel()} methods.
  */
 public class SauceConnect {
-    private static final int RELEASE = 7;
+    private static final int RELEASE = 8;
     private static PythonInterpreter interpreter = null;
     private CommandLine commandLineArguments;
     private boolean liteMode;
@@ -98,7 +98,7 @@ public class SauceConnect {
         options.addOption("s", "ssh", false, null);
         options.addOption("d", "debug", false, "Enable verbose debugging");
         options.addOption("l", "lite", false, null);
-        Option sePort = new Option("P", "seport", true, null);
+        Option sePort = new Option("P", "se-port", true, null);
         sePort.setArgName("PORT");
         options.addOption(sePort);
         try {
@@ -110,7 +110,7 @@ public class SauceConnect {
                 System.exit(0);
             }
             if (result.hasOption("version")) {
-                System.out.println("Version: Sauce Connect 3.0b1"); //2.0-r" + RELEASE);
+                System.out.println("Version: Sauce Connect 3.0-r" + RELEASE);
                 System.exit(0);
             }
             if (result.getArgs().length == 0) {
