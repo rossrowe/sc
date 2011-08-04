@@ -266,6 +266,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
   }
 
   protected def proxyPlainTextRequest(request:Request, response:javax.servlet.http.HttpServletResponse) : Long = {
+    val startMs = System.currentTimeMillis
     val url = new URL(request.getUri.toString)
 
     val connection = url.openConnection()
@@ -366,7 +367,6 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
           throw new RuntimeException("Couldn't establish SSL handshake.  Try using trustAllSSLCertificates.\n" + e.getLocalizedMessage(), e)
         }
       }
-      log.info(request.getMethod + " " + url + " -> " + code)
       response.setStatus(code)
       //response.setReason(http.getResponseMessage())
 
@@ -415,6 +415,8 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     if (proxy_in != null) {
       bytesCopied = IOProxy.proxy(proxy_in, response.getOutputStream())
     }
+    val duration = System.currentTimeMillis - startMs
+    log.info(request.getMethod + " " + url + " -> " + code + " (" + duration + "ms)")
     return bytesCopied
   }
 
