@@ -34,8 +34,9 @@
 
 package com.saucelabs.sauceconnect.proxy;
 
+import org.eclipse.jetty.util.resource.Resource;
 import org.mortbay.util.IO;
-import org.mortbay.util.Resource;
+
 
 import java.io.*;
 import java.net.MalformedURLException;
@@ -72,7 +73,12 @@ public class ClassPathResource extends Resource {
 		return super.getAssociate();
 	}
 
-	public void release() {
+    @Override
+    public boolean isContainedIn(Resource resource) throws MalformedURLException {
+        return false;
+    }
+
+    public void release() {
 	}
 
 	public boolean exists() {

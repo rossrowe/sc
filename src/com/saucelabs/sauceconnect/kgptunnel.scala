@@ -19,7 +19,7 @@ package com.saucelabs.sauceconnect
 import java.io.{File, IOException}
 
 import org.apache.commons.logging.Log
-import org.mortbay.log.LogFactory
+import org.apache.commons.logging.LogFactory
 import org.python.core._
 
 import com.saucelabs.kgp.{KgpClient, Connect, Close, ProxyServer}

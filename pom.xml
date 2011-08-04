@@ -59,7 +59,6 @@
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
             <version>2.4</version>
-            <scope>provided</scope>
         </dependency>
         <!-- Exclude the jython library, as the built sauce-connect jar seemed to be missing several jython
         classes (possible bug with maven-shade plugin?)  Projects that reference sauce-connect must explicitly
@@ -80,19 +79,21 @@
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-server</artifactId>
             <version>7.2.1.v20101111</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-http</artifactId>
             <version>7.2.1.v20101111</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-servlet</artifactId>
             <version>7.2.1.v20101111</version>
-            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>1.4</version>            
         </dependency>
         <dependency>
             <groupId>com.jgoodies</groupId>
@@ -117,6 +118,12 @@
         <dependency>
             <groupId>com.saucelabs.selenium</groupId>
             <artifactId>sauce-ondemand-driver</artifactId>
+            <version>2.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.saucelabs.selenium</groupId>
+            <artifactId>selenium-client-factory</artifactId>
             <version>2.0</version>
             <scope>test</scope>
         </dependency>

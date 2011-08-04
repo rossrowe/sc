@@ -2,7 +2,6 @@ package com.saucelabs.sauceconnect;
 
 import com.saucelabs.selenium.client.factory.SeleniumFactory;
 import com.thoughtworks.selenium.Selenium;
-import org.apache.commons.lang.StringUtils;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -40,11 +39,8 @@ public class SeleniumTest extends HttpServlet {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         server.setHandler(context);
-
         context.addServlet(new ServletHolder(this), "/*");
-
         server.start();
-//        server.join();
 
         System.out.println("Started Jetty at 8080");
 
