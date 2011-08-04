@@ -89,7 +89,6 @@
         <zipfileset src="lib/jetty-servlet-7.2.1.v20101111.jar"/>
         <zipfileset src="lib/jetty-util-7.2.1.v20101111.jar"/>
         <zipfileset src="lib/jetty-io-7.2.1.v20101111.jar"/>
-        <zipfileset src="lib/jetty-continuation-7.2.1.v20101111.jar"/>
         <zipfileset src="lib/jython.jar"/>
         <zipfileset src="lib/json_simple-1.1.jar"/>
         <zipfileset src="forms-1.3.0.jar"/>
