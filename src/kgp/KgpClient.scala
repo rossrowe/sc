@@ -44,6 +44,7 @@ import javax.net.ssl.TrustManager
 import java.security.KeyStore
 import java.security.cert.{X509Certificate, CertificateException}
 import java.nio.ByteOrder
+import java.nio.channels.ClosedChannelException
 import java.net.{InetSocketAddress, ConnectException}
 import java.io.{IOException, ByteArrayInputStream}
 import java.util.concurrent.{TimeUnit, Executors}
@@ -388,7 +389,8 @@ class ProxyClientConn(id: Long,
   override def localShutdown {
     if (tcpConnected) {
       log.debug("kgp-tunneled connection closed, closing proxied tcp connection")
-      tcpChannel.close() // channelClosed will shut us down when it's done
+      tcpChannel.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
+      // channelClosed will shut us down when it's done
     } else {
       super.localShutdown()
     }
@@ -440,16 +442,19 @@ class ProxyServerConn(id: Long,
     }
   }
 
-  override def localShutdown {
+
+  override def remoteShutdown() {
     if (tcpConnected) {
-      //log.info("kgp-tunneled connection closed, closing proxied tcp connection")
-      tcpChannel.close() // channelClosed will shut us down when it's done
+      log.debug("got remote shutdown for conn " + id)
+      isRemoteShutdown = true
+
+      log.debug("kgp-tunneled connection closed, closing proxied tcp connection")
+      tcpChannel.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
+      // channelClosed will shut us down when it's done
     } else {
-      super.localShutdown()
+      super.remoteShutdown()
     }
   }
-
-
 }
 
 
@@ -486,26 +491,33 @@ class ProxyTcpHandler(client: KgpClient) extends SimpleChannelUpstreamHandler {
       client.send(kgpConn.id, msg)
       //log.info("tcp -> kgp: " + msg.toString(UTF_8))
     } else {
-      log.warn("BUFFERING tcp->kgp: "+ msg.toString(UTF_8))
+      log.warn("BUFFERING in outbound proxy")
       outBuffer += msg
     }
   }
 
   override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
-    for (bufMsg <- outBuffer) {
-      // FIXME: does this actually happen?
-      client.send(kgpConn.id, bufMsg)
+    if (kgpConn != null && kgpConn.tcpConnected) {
+      for (bufMsg <- outBuffer) {
+        log.warn("FLUSHING BUFFER in outbound proxy")
+        // FIXME: does this actually happen?
+        client.send(kgpConn.id, bufMsg)
+      }
     }
     outBuffer.clear()
     if (kgpConn.tcpConnected) {
-      //log.info("proxied tcp connection closed, closing kgp-tunneled connection")
+      log.debug("proxied tcp connection closed, closing kgp-tunneled connection")
       kgpConn.tcpConnected = false
       kgpConn.localShutdown()
     }
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
-    e.getCause.printStackTrace
+    kgpConn.tcpConnected = false // maybe?
+    e.getCause match {
+      case c:ClosedChannelException => {}
+      case c:Exception => e.getCause.printStackTrace
+    }
   }
 }
 
@@ -853,19 +865,22 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
 
           kgpChannel.inSeq = seq
 
-          if (!kgpChannel.conns.contains(connId)) {
-            kgpChannel.conns(connId) = mkconn(connId, c)
-          }
-          val conn = kgpChannel.conns(connId)
           ctrl match {
             case 0 => {
+              if (!kgpChannel.conns.contains(connId)) {
+                kgpChannel.conns(connId) = mkconn(connId, c)
+              }
+              val conn = kgpChannel.conns(connId)
               if (msg.readableBytes > 0) {
                 //log.info("GOT " + seq + " " + ack + " " + txt)
                 conn.dataReceived(msg)
               }
             }
             case 1 => {
-              conn.remoteShutdown()
+              if (kgpChannel.conns contains connId) {
+                val conn = kgpChannel.conns(connId)
+                conn.remoteShutdown()
+              }
             }
           }
         }  else {
