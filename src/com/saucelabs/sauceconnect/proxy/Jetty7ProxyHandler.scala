@@ -117,7 +117,6 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     catch {
       case e:Exception => {
         log.warn("Could not proxy " + url + ", exception: " + e)
-        e.printStackTrace
         if (!response.isCommitted())
           response.sendError(400, "Could not proxy " + url + "\n" + e)
       }
@@ -286,6 +285,14 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     // check connection header
     var connectionHdr = request.getHeader(HttpHeaders.CONNECTION)
 
+    var curious = false
+    //if (url.toString.contains("/Account/Login")) {
+    //  curious = true
+    //}
+
+    if (curious) {
+      log.info("REQ: " + request.getMethod + " " + url)
+    }
     // copy headers
     var xForwardedFor = false
     var isGet = "GET".equals(request.getMethod)
@@ -313,6 +320,9 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
           //log.info("forwarding: " + name + " " + value)
           connection.addRequestProperty(name, value)
+          if (curious) {
+            log.info("REQ: " + name + ": " + value)
+          }
           xForwardedFor |= HttpHeaders.X_FORWARDED_FOR.equalsIgnoreCase(name)
         }
       }
@@ -368,6 +378,9 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
         }
       }
       response.setStatus(code)
+      if (curious) {
+        log.info("RESP: " + code)
+      }
       //response.setReason(http.getResponseMessage())
 
       val contentType = http.getContentType()
@@ -397,8 +410,12 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     var hdr = connection.getHeaderFieldKey(h)
     var v = connection.getHeaderField(h)
     while (hdr != null || v != null) {
-      if (hdr != null && v != null && !_DontProxyHeaders.contains(hdr) && (_chained || !_ProxyAuthHeaders.contains(hdr)))
+      if (hdr != null && v != null && !_DontProxyHeaders.contains(hdr) && (_chained || !_ProxyAuthHeaders.contains(hdr))) {
         response.setHeader(hdr, v)
+        if (curious) {
+          log.info("RESP: " + hdr + ": " + v)
+        }
+      }
       h += 1
       hdr = connection.getHeaderFieldKey(h)
       v = connection.getHeaderField(h)
@@ -454,7 +471,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
           catch {
             case e:Exception => {
               e.printStackTrace()
-              throw new IOException("test")
+              throw e
             }
           }
         }

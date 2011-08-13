@@ -44,7 +44,7 @@ import javax.net.ssl.TrustManager
 import java.security.KeyStore
 import java.security.cert.{X509Certificate, CertificateException}
 import java.nio.ByteOrder
-import java.nio.channels.ClosedChannelException
+import java.nio.channels.{ClosedChannelException, UnresolvedAddressException}
 import java.net.{InetSocketAddress, ConnectException}
 import java.io.{IOException, ByteArrayInputStream}
 import java.util.concurrent.{TimeUnit, Executors}
@@ -907,6 +907,9 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     ee.getCause match {
       case e: ConnectException => {
         log.warn("Connection failed")
+      }
+      case e: UnresolvedAddressException => {
+        log.warn("Couldn't resolve Sauce Connect server address")
       }
       case e: IOException => {
         log.warn("IOException: " + e)

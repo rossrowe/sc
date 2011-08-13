@@ -38,7 +38,7 @@ import java.util.ArrayList;
  * the {@link #closeTunnel()} methods.
  */
 public class SauceConnect {
-    private static final int RELEASE = 9;
+    private static final int RELEASE = 10;
     private static PythonInterpreter interpreter = null;
     private CommandLine commandLineArguments;
     private boolean liteMode;
