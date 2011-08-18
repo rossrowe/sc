@@ -61,21 +61,8 @@ class KgpTunnel {
     while (true) {
       forwarded_health.check()
       val start = System.currentTimeMillis()
-      val t = new Timeout(health_check_interval){
-        @throws(classOf[Exception])
-        override def longRunningTask() = {
-          //val s = tunnelConnection.wtf()
-          //s.close()
-        }
-      }
-      t.go()
-      if(t.isSuccess()){
-        if ((health_check_interval - (System.currentTimeMillis()-start)) > 0) {
-          Thread.sleep(health_check_interval - (System.currentTimeMillis()-start))
-        }
-      } else {
-        log.info("health check failed")
-        //reconnect()
+      if ((health_check_interval - (System.currentTimeMillis()-start)) > 0) {
+        Thread.sleep(health_check_interval - (System.currentTimeMillis()-start))
       }
     }
   }
