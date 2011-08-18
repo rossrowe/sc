@@ -40,6 +40,10 @@ import scala.collection._
 import scala.collection.mutable.LinkedHashMap
 import scala.collection.JavaConversions._
 
+object Counter {
+  var n = 0
+}
+
 class InsensitiveStringSet extends mutable.HashSet[String] {
   override def contains(elem:String) : Boolean = {
     this.iterator exists (elem.toLowerCase == _.toLowerCase)
@@ -285,14 +289,11 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     // check connection header
     var connectionHdr = request.getHeader(HttpHeaders.CONNECTION)
 
-    var curious = false
-    //if (url.toString.contains("/Account/Login")) {
-    //  curious = true
-    //}
-
-    if (curious) {
-      log.info("REQ: " + request.getMethod + " " + url)
+    if (log.isDebugEnabled) {
+      Counter.n += 1
+      log.debug("REQ " + Counter.n + ": " + request.getMethod + " " + url)
     }
+
     // copy headers
     var xForwardedFor = false
     var isGet = "GET".equals(request.getMethod)
@@ -320,8 +321,8 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
           //log.info("forwarding: " + name + " " + value)
           connection.addRequestProperty(name, value)
-          if (curious) {
-            log.info("REQ: " + name + ": " + value)
+          if (log.isDebugEnabled) {
+            log.debug("REQ " + Counter.n + ": " + name + ": " + value)
           }
           xForwardedFor |= HttpHeaders.X_FORWARDED_FOR.equalsIgnoreCase(name)
         }
@@ -378,13 +379,13 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
         }
       }
       response.setStatus(code)
-      if (curious) {
-        log.info("RESP: " + code)
+      if (log.isDebugEnabled) {
+        log.debug("RESP " + Counter.n + ": " + code)
       }
       //response.setReason(http.getResponseMessage())
 
       val contentType = http.getContentType()
-      if (log.isDebugEnabled()) {
+      if (log.isDebugEnabled) {
         log.debug("Content-Type is: " + contentType)
       }
     }
@@ -411,9 +412,9 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     var v = connection.getHeaderField(h)
     while (hdr != null || v != null) {
       if (hdr != null && v != null && !_DontProxyHeaders.contains(hdr) && (_chained || !_ProxyAuthHeaders.contains(hdr))) {
-        response.setHeader(hdr, v)
-        if (curious) {
-          log.info("RESP: " + hdr + ": " + v)
+        response.addHeader(hdr, v)
+        if (log.isDebugEnabled) {
+          log.debug("RESP " + Counter.n + ": " + hdr + ": " + v)
         }
       }
       h += 1
@@ -434,6 +435,9 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     }
     val duration = System.currentTimeMillis - startMs
     log.info(request.getMethod + " " + url + " -> " + code + " (" + duration + "ms)")
+    if (log.isDebugEnabled) {
+      log.debug("RESP " + Counter.n + " DONE, " + bytesCopied + " bytes")
+    }
     return bytesCopied
   }
 
