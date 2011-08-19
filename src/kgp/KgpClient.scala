@@ -246,7 +246,7 @@ class KgpPacketDecoder extends FrameDecoder {
         return null
       }
 
-      log.info("remote announce received")
+      log.debug("remote announce received")
       val kgp = buffer.readSlice(3).toString(UTF_8)
       if (kgp != "kgp") {
         buffer.resetReaderIndex
@@ -257,10 +257,10 @@ class KgpPacketDecoder extends FrameDecoder {
       val version = (buffer.readUnsignedInt(),
                      buffer.readUnsignedInt(),
                      buffer.readUnsignedInt())
-      log.info(version)
+      log.debug(version)
       val endpointId = new Array[Byte](16)
       buffer.readBytes(endpointId)
-      log.info(ChannelBuffers.hexDump(wrappedBuffer(endpointId)))
+      log.debug(ChannelBuffers.hexDump(wrappedBuffer(endpointId)))
 
       val metadataLen = buffer.readUnsignedInt()
       if (buffer.readableBytes < metadataLen) {
@@ -270,7 +270,7 @@ class KgpPacketDecoder extends FrameDecoder {
 
       val metadataJson = new Array[Byte](metadataLen.toInt)
       buffer.readBytes(metadataJson)
-      log.info(metadataJson.toString)
+      //log.debug(metadataJson.toString)
       val metadata = JSON.parseFull(new String(metadataJson))
 
       initialized = true
@@ -310,7 +310,7 @@ class KgpPacketEncoder extends OneToOneEncoder {
       case ("announce",
             metadataJson: String,
             kgpChannel: KgpChannel) => {
-        log.info("announcing as " + ChannelBuffers.hexDump(wrappedBuffer(kgpChannel.localEndpointId)))
+        log.debug("announcing as " + ChannelBuffers.hexDump(wrappedBuffer(kgpChannel.localEndpointId)))
         val b = buffer(Kgp.INTRO_LEN + metadataJson.length)
         b.writeBytes(copiedBuffer("kgp", UTF_8))
         b.writeInt(Kgp.VERSION._1)
@@ -569,14 +569,14 @@ class KgpClientTrustManager() extends X509TrustManager {
   def checkServerTrusted(chain: Array[X509Certificate], authType: String) {
     val chainlist = new ArrayList[Certificate]
     for (c <- chain) {
-      log.info(
+      log.debug(
         "Checking certificate: " + c.getSubjectDN())
       chainlist.add(c)
     }
 
     val certPath = certFactory.generateCertPath(chainlist)
     certPathValidator.validate(certPath, params)
-    log.info("certificate validated")
+    log.debug("Certificate validated")
   }
 }
 
@@ -624,7 +624,7 @@ class KgpClient(host: String, port: Int, forwardPort: Int, val metadataJson: Str
     loop {
       react {
         case Connect => {
-          log.info("connecting to Sauce Connect server")
+          log.debug("connecting to Sauce Connect server")
           def mkconn(id: Long, channel: Channel): KgpConn = {
             return new ProxyClientConn(id, this, cf, forwardPort)
           }
@@ -748,7 +748,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   }
 
   override def channelConnected(ctx: ChannelHandlerContext, e: ChannelStateEvent) = {
-    log.info("connected!")
+    log.debug("KGP Connected")
     val sslHandler = ctx.getPipeline().get(classOf[SslHandler])
     sslHandler.handshake().addListener(() => {
       channelHandShook(e.getChannel)
