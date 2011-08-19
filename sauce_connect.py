@@ -865,7 +865,8 @@ def _get_loggable_options(options):
 
 def run(options, dependency_versions=None,
         setup_signal_handler=setup_signal_handler,
-        reverse_ssh=ReverseSSH, do_check_version=True):
+        reverse_ssh=ReverseSSH, do_check_version=True,
+        release=None, build=None):
     if not options.quiet:
         print ".---------------------------------------------------."
         print "|  Have questions or need help with Sauce Connect?  |"
@@ -880,6 +881,8 @@ def run(options, dependency_versions=None,
 
     metadata = dict(ScriptName=NAME,
                     ScriptRelease=RELEASE,
+                    ClientRelease=release,
+                    ClientBuild=build,
                     Platform=platform.platform(),
                     PythonVersion=platform.python_version(),
                     OwnerHost=options.host,

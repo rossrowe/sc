@@ -671,7 +671,9 @@ class KgpClient(host: String, port: Int, forwardPort: Int, val metadataJson: Str
             }
           }
           currentChannel = channel
-          log.info("resending " + kgpChannel.outBuffer.length + " packets")
+          if (kgpChannel.outBuffer.length > 0) {
+            log.info("resending " + kgpChannel.outBuffer.length + " packets")
+          }
           for (packet <- kgpChannel.outBuffer) {
             currentChannel.write(packet)
           }
@@ -856,7 +858,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     //}
     e.getMessage match {
       case (ver: (Int, Int, Int), id: Array[Byte], metadata: Option[Any]) => {
-        log.info("Tunnel host version:" + ver +
+        log.info("Tunnel host version: " + ver.productIterator.mkString(".") +
                  ", ID: " + ChannelBuffers.hexDump(wrappedBuffer(id)))
         kgpChannel.remoteEndpointId = id
         kgpChannel.remoteEndpointNum = BigInt(ChannelBuffers.hexDump(wrappedBuffer(kgpChannel.remoteEndpointId)), 16)

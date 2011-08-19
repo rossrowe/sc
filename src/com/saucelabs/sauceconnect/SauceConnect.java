@@ -38,7 +38,8 @@ import java.util.ArrayList;
  * the {@link #closeTunnel()} methods.
  */
 public class SauceConnect {
-    private static final int RELEASE = 11;
+    private static final int BUILD = 12;
+    private static final int RELEASE = 12;
     private static PythonInterpreter interpreter = null;
     private CommandLine commandLineArguments;
     private boolean liteMode;
@@ -204,7 +205,9 @@ public class SauceConnect {
             } else {
                 startCommand = "sauce_connect.run(options,"
                         + "setup_signal_handler=setup_java_signal_handler,"
-                        + "reverse_ssh=JavaReverseSSH,do_check_version=False)";
+                        + "reverse_ssh=JavaReverseSSH,do_check_version=False,"
+                        + "release=\"3.0-r" + RELEASE + "\","
+                        + "build=\"" + BUILD + "\")";
             }
             interpreter.exec(startCommand);
         } catch (Exception e) {
