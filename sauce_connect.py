@@ -329,22 +329,22 @@ class HealthChecker(object):
                 result = (self.host, port, ping_time)
 
                 if ping_time >= self.latency_log:
-                    logger.debug("Connected to %s:%s in in %dms" % result)
+                    logger.debug("Connected to local server %s:%s in in %dms" % result)
 
                 if ping_time >= LATENCY_WARNING:
                     if (self.last_tcp_ping[port] is None
                         or self.last_tcp_ping[port] < LATENCY_WARNING):
-                        logger.warn("High latency to %s:%s (took %dms to "
+                        logger.warn("High latency to local server %s:%s (took %dms to "
                                     "connect); tests may run slowly" % result)
 
                 if (ping_time < (LATENCY_WARNING / 2)
                     and self.last_tcp_ping[port]
                     and self.last_tcp_ping[port] >= LATENCY_WARNING):
-                    logger.info("Latency to %s:%s has lowered (took %dms to "
+                    logger.info("Latency to local server %s:%s has lowered (took %dms to "
                                 "connect)" % result)
 
                 if self.last_tcp_ping[port] is None:
-                    logger.info("Succesfully connected to %s:%s in %dms" % result)
+                    logger.info("Succesfully connected to local server %s:%s in %dms" % result)
 
                 self.last_tcp_ping[port] = ping_time
                 continue
@@ -355,7 +355,7 @@ class HealthChecker(object):
             logger.warning(self.fail_msg % dict(host=self.host, port=port))
             if now - self.last_tcp_connect[port] > HEALTH_CHECK_FAIL:
                 raise HealthCheckFail(
-                    "Could not connect to %s:%s for over %s seconds"
+                    "Could not connect to local server %s:%s for over %s seconds"
                     % (self.host, port, HEALTH_CHECK_FAIL))
         return all_good
 
@@ -870,6 +870,7 @@ def run(options, dependency_versions=None,
         print ".---------------------------------------------------."
         print "|  Have questions or need help with Sauce Connect?  |"
         print "|  Contact us: http://saucelabs.com/forums          |"
+        print "|  Terms of Service: http://saucelabs.com/tos       |"
         print "-----------------------------------------------------"
     logger.info("/ Starting \\")
     logger.info('Please wait for "You may start your tests" to start your tests.')

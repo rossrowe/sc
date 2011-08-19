@@ -38,7 +38,7 @@ class KgpTunnel {
   var ssh_port = 0
   var se_port = 0
 
-  private var tunnelConnection:KgpClient = null
+  private var client:KgpClient = null
   private var readyfile:File = null
 
   private def getTunnelSetting(name:String) : String = {
@@ -51,16 +51,19 @@ class KgpTunnel {
       this.readyfile.delete()
       this.readyfile.deleteOnExit()
     }
-    log.info("Starting KGP connection...")
+
+    val forwarded_health = new HealthChecker(this.host, ports)
+    forwarded_health.check()
+
+    log.info("Starting connection to tunnel host...")
     connect()
     if (this.readyfile != null) {
       this.readyfile.createNewFile()
     }
-    val forwarded_health = new HealthChecker(this.host, ports)
     val health_check_interval = SauceConnect.getHealthCheckInterval()
     while (true) {
-      forwarded_health.check()
       val start = System.currentTimeMillis()
+      forwarded_health.check()
       if ((health_check_interval - (System.currentTimeMillis()-start)) > 0) {
         Thread.sleep(health_check_interval - (System.currentTimeMillis()-start))
       }
@@ -71,29 +74,30 @@ class KgpTunnel {
     val host = getTunnelSetting("host")
     val user = getTunnelSetting("user")
     val password = getTunnelSetting("password")
-    log.info("KGP connecting to " + host + " as " + user)
+    log.info("Connecting to tunnel host " + host + " as " + user)
 
-    tunnelConnection = new KgpClient(host,
-                                     this.ssh_port,
-                                     this.ports(0).toInt,
-                                     "{\"username\": \"" + user + "\", \"access_key\": \"" + password + "\"}")
-    tunnelConnection.start()
-    tunnelConnection.connect()
-    val proxyServer = new ProxyServer(tunnelConnection, this.se_port)
+    client = new KgpClient(host,
+                           this.ssh_port,
+                           this.ports(0).toInt,
+                           "{\"username\": \"" + user + "\", \"access_key\": \"" + password + "\"}")
+    client.start()
+    client.connect()
+    val proxyServer = new ProxyServer(client, this.se_port)
     proxyServer.serve()
     log.info("Selenium proxy listening on port " + this.se_port)
-    //tunnelConnection.authenticateWithPassword(user, password)
+    //client.authenticateWithPassword(user, password)
     for (index <- 0 until ports.length) {
       val remotePort = Integer.valueOf(tunnel_ports(index))
       val localPort = Integer.valueOf(ports(index))
-      //tunnelConnection.requestRemotePortForwarding("0.0.0.0", remotePort, this.host,
+      //client.requestRemotePortForwarding("0.0.0.0", remotePort, this.host,
       //                                             localPort)
     }
-    log.info("KGP Connected. You may start your tests.")
+    client.waitForConnection()
+    log.info("Connected! You may start your tests.")
   }
 
   private def reconnect() : Unit = {
-    log.info("KGP connection failed. Re-connecting ..")
+    log.info("Connection to tunnel host failed. Re-connecting ..")
     for(attempts <- 0 until MAX_RECONNECT_ATTEMPTS) {
       Thread.sleep(3000)
       val connector = new Timeout(10000) {
@@ -104,20 +108,20 @@ class KgpTunnel {
       }
       connector.go()
       if(connector.isSuccess()){
-        log.info("KGP successfully re-connected")
+        log.info("Successfully re-connected to tunnel host")
         return
       } else {
-        log.info("Re-connect failed. Trying again ..")
+        log.info("Re-connect failed. Trying again...")
       }
     }
-    log.info("Unable to re-establish connection to Sauce Labs")
-    throw new RuntimeException("Unable to re-establish connection to Sauce Labs")
+    log.info("Unable to re-establish connection to tunnel host")
+    throw new RuntimeException("Unable to re-establish connection to tunnel host")
   }
 
   def stop() = {
     if (this.readyfile != null) {
       this.readyfile.delete()
     }
-    tunnelConnection.close()
+    client.close()
   }
 }

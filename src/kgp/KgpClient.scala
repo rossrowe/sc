@@ -601,6 +601,7 @@ class KgpClient(host: String, port: Int, forwardPort: Int, val metadataJson: Str
   var currentChannel: Channel = null
   val kgpChannel = new KgpChannel()
   val trustManager = new KgpClientTrustManager()
+  var everConnected = false
   val _r = new Random()
 
   implicit def ftotimertask(f: () => Unit) = new TimerTask {
@@ -609,6 +610,17 @@ class KgpClient(host: String, port: Int, forwardPort: Int, val metadataJson: Str
 
   def after(ms:Int)(f: => Unit) {
     timer.newTimeout(f _, ms, TimeUnit.MILLISECONDS)
+  }
+
+  def waitForConnection() {
+    while (true) {
+      if (everConnected) return
+      Thread.sleep(1)
+    }
+  }
+
+  def handleAnnounced() {
+    everConnected = true
   }
 
   // the actor API is not testable with EasyMock, and kind of poorly
@@ -711,6 +723,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
   type Packet = (Long, Long, Long, Int, ChannelBuffer)
   private val log = LogFactory.getLog(this.getClass)
 
+  var announced = false
   var lastIncoming = 0L
   var lastKeepaliveTime = 0L
   var keepaliveOutSeq = 0L
@@ -843,11 +856,19 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     //}
     e.getMessage match {
       case (ver: (Int, Int, Int), id: Array[Byte], metadata: Option[Any]) => {
-        log.info("got announcement:" + ver + " " + ChannelBuffers.hexDump(wrappedBuffer(id)))
+        log.info("Tunnel host version:" + ver +
+                 ", ID: " + ChannelBuffers.hexDump(wrappedBuffer(id)))
         kgpChannel.remoteEndpointId = id
         kgpChannel.remoteEndpointNum = BigInt(ChannelBuffers.hexDump(wrappedBuffer(kgpChannel.remoteEndpointId)), 16)
+        announced = true
+        client.handleAnnounced()
       }
       case (connId: Long, seq: Long, ack: Long, ctrl: Int, msg: ChannelBuffer) => {
+        if (!announced) {
+          log.error("Message recieved before announcement!  Disconnecting.")
+          c.close()
+        }
+
         lastIncoming = System.currentTimeMillis
         //log.info("got packet " + seq + " on " + connId + " " + ctime())
 
