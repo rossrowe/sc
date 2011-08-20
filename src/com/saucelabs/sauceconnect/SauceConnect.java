@@ -38,8 +38,8 @@ import java.util.ArrayList;
  * the {@link #closeTunnel()} methods.
  */
 public class SauceConnect {
-    private static final int BUILD = 12;
-    private static final int RELEASE = 12;
+    private static final int BUILD = 13;
+    private static final int RELEASE = 13;
     private static PythonInterpreter interpreter = null;
     private CommandLine commandLineArguments;
     private boolean liteMode;
