@@ -106,13 +106,14 @@ class TunnelMachine(object):
 
     _host_search = re.compile("//([^/]+)").search
 
-    def __init__(self, rest_url, user, password, domains, ssh_port, boost_mode, use_ssh, metadata=None):
+    def __init__(self, rest_url, user, password, domains, ssh_port, boost_mode, use_ssh, fast_fail_regexps, metadata=None):
         self.user = user
         self.password = password
         self.domains = set(domains)
         self.ssh_port = ssh_port
         self.boost_mode = boost_mode
         self.use_ssh = use_ssh
+        self.fast_fail_regexps = fast_fail_regexps
         self.metadata = metadata or dict()
 
         self.reverse_ssh = None
@@ -212,7 +213,8 @@ class TunnelMachine(object):
                                Metadata=self.metadata,
                                SSHPort=self.ssh_port,
                                UseCachingProxy=self.boost_mode,
-                               UseKgp=not self.use_ssh))
+                               UseKgp=not self.use_ssh,
+                               FastFailRegexps=self.fast_fail_regexps.split(',')))
         logger.info("%s" % data)
         req = urllib2.Request(url=self.base_url, headers=headers, data=data)
         doc = self._get_doc(req)
@@ -745,6 +747,8 @@ Performance tip:
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--se-port", default=4445, type="int",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--fast-fail-regexps", default="", type="str",
+                  help=optparse.SUPPRESS_HELP)
     op.add_option_group(og)
 
     og = optparse.OptionGroup(op, "Script debugging options")
@@ -912,6 +916,7 @@ def run(options, dependency_versions=None,
                                    options.api_key, options.domains,
                                    options.ssh_port, bool(options.boost_mode),
                                    bool(options.ssh),
+                                   options.fast_fail_regexps,
                                    metadata)
         except TunnelMachineError, e:
             logger.error(e)

@@ -108,6 +108,9 @@ public class SauceConnect {
         Option sePort = new Option("P", "se-port", true, null);
         sePort.setArgName("PORT");
         options.addOption(sePort);
+        Option fastFail = new Option("F", "fast-fail-regexps", true, null);
+        fastFail.setArgName("REGEXPS");
+        options.addOption(fastFail);
         try {
             CommandLineParser parser = new PosixParser();
             CommandLine result = parser.parse(options, args);
@@ -172,6 +175,10 @@ public class SauceConnect {
             if (options.hasOption('P')) {
                 args.add(new PyString("--se-port"));
                 args.add(new PyString(options.getOptionValue('P')));
+            }
+            if (options.hasOption('F')) {
+                args.add(new PyString("--fast-fail-regexps"));
+                args.add(new PyString(options.getOptionValue('F')));
             }
         }
 
