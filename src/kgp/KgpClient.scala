@@ -671,6 +671,7 @@ class KgpClient(host: String, port: Int, forwardPort: Int, val metadataJson: Str
             }
           }
           currentChannel = channel
+          log.info("Successful handshake with Sauce Connect server")
           if (kgpChannel.outBuffer.length > 0) {
             log.info("resending " + kgpChannel.outBuffer.length + " packets")
           }
@@ -772,17 +773,25 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
 
   def channelHandShook(channel: Channel) = {
     if (keepaliveTimer != null) {
-      log.info("keepalive timer still going when reconnecting, stopping it and making a new one")
-      keepaliveTimer.stop()
+      log.info("keepalive timer still going when reconnecting, making a new one")
     }
     keepaliveTimer = new HashedWheelTimer()
+    var localTimer = keepaliveTimer
     channel.write(("announce", client.metadataJson, kgpChannel))
     lastIncoming = System.currentTimeMillis
     def keepaliveHandler() {
+      if (localTimer != keepaliveTimer) {
+        log.info("old keepalive timer shutting down")
+        return
+      }
       if (keepaliveOutSeq %> keepaliveOutAcked) {
         val now = System.currentTimeMillis
         if (now - lastIncoming > calculatedTimeout) {
-          log.warn("Sauce Connect connection stalled! " + keepaliveOutAcked + '/' + keepaliveOutSeq + " " + (now - lastIncoming) + " " + calculatedTimeout + " " + minAckTime + " " + ctime())
+          log.warn("Sauce Connect connection stalled! " +
+                   keepaliveOutAcked + '/' + keepaliveOutSeq + " acks, " +
+                   (now - lastIncoming) + "ms since last recv, " +
+                   calculatedTimeout + "ms timeout exceeded, " +
+                   "min ack: " + minAckTime)
           channel.write("close").addListener(ChannelFutureListener.CLOSE)
           return
         } else {
@@ -793,10 +802,10 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
       channel.write(packet)
       lastKeepaliveTime = System.currentTimeMillis
 
-      keepaliveTimer.newTimeout(keepaliveHandler _, 1000, TimeUnit.MILLISECONDS)
+      localTimer.newTimeout(keepaliveHandler _, 1000, TimeUnit.MILLISECONDS)
     }
 
-    keepaliveTimer.newTimeout(keepaliveHandler _, 1000, TimeUnit.MILLISECONDS)
+    localTimer.newTimeout(keepaliveHandler _, 1000, TimeUnit.MILLISECONDS)
 
     client.handleConnected(channel)
   }
@@ -919,7 +928,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     log.info("connection to Sauce Connect server closed")
     client.handleClosed(e.getChannel)
     if (keepaliveTimer != null) {
-      keepaliveTimer.stop()
+      keepaliveTimer = null
     }
   }
 
