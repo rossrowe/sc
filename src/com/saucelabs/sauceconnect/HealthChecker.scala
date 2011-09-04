@@ -14,22 +14,28 @@
 //   limitations under the License.
 // ========================================================================
 
-package com.saucelabs.sauceconnect;
+package com.saucelabs.sauceconnect
 
-import javax.swing.JTextPane;
+import org.python.core._
 
-public class TextPanelLogger {
-    private JTextPane target;
-    private StringBuilder buffer = new StringBuilder();
-    
-    public TextPanelLogger(JTextPane target){
-        this.target = target;
-    }
-    public void write(String s){
-        buffer.append(s);
-    }
-    public void flush(){
-        target.setText(buffer.toString());
-        target.setCaretPosition(buffer.length());
-    }
+class HealthChecker(host: String,
+                    ports: Array[String],
+                    failMsg: String = null) {
+  implicit def fromPyBoolean(x: PyBoolean) = { x.getValue == 1 }
+  implicit def toPyString(x: String) = new PyString(x)
+  implicit def toPyList(xs: Array[String]) =
+    new PyList(xs.map(x => x: PyObject))
+
+  val pyClass = SauceConnect.interpreter.eval("sauce_connect.HealthChecker")
+  var pyObj: PyObject = null
+  if (failMsg != null) {
+    pyObj = pyClass.__call__(host, ports, failMsg)
+  } else {
+    pyObj = pyClass.__call__(host, ports)
+  }
+
+
+  def check(): Boolean = {
+    return pyObj.invoke("check").asInstanceOf[PyBoolean]
+  }
 }

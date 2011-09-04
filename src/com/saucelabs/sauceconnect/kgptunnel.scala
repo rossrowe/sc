@@ -60,7 +60,7 @@ class KgpTunnel {
     if (this.readyfile != null) {
       this.readyfile.createNewFile()
     }
-    val health_check_interval = SauceConnect.getHealthCheckInterval()
+    val health_check_interval = SauceConnect.getHealthCheckInterval
     while (true) {
       val start = System.currentTimeMillis()
       forwarded_health.check()

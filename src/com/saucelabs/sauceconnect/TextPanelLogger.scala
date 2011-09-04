@@ -14,14 +14,19 @@
 //   limitations under the License.
 // ========================================================================
 
-package com.saucelabs.sauceconnect;
+package com.saucelabs.sauceconnect
 
-public class LineCounter {
-    public static int countLines(String text){
-        int lines = 0;
-        for(int index = 0; index != -1; index = text.indexOf("\n", index+1)){
-            lines++;
-        }
-        return lines-1;
-    }
+import javax.swing.JTextPane
+
+class TextPanelLogger(val target: JTextPane) {
+  val buffer = new StringBuilder()
+
+  def write(s: String) {
+    buffer.append(s)
+  }
+
+  def flush() {
+    target.setText(buffer.toString)
+    target.setCaretPosition(buffer.length)
+  }
 }
