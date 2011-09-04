@@ -23,8 +23,7 @@ class HealthChecker(host: String,
                     failMsg: String = null) {
   implicit def fromPyBoolean(x: PyBoolean) = { x.getValue == 1 }
   implicit def toPyString(x: String) = new PyString(x)
-  implicit def toPyList(xs: Array[String]) =
-    new PyList(xs.map(x => x: PyObject))
+  implicit def toPyList(xs: Array[String]) = new PyList(xs.map(x => x: PyObject))
 
   val pyClass = SauceConnect.interpreter.eval("sauce_connect.HealthChecker")
   var pyObj: PyObject = null
