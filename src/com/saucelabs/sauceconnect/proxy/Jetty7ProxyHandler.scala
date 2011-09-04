@@ -2,38 +2,23 @@ package com.saucelabs.sauceconnect.proxy
 
 import cybervillains.ca.KeyStoreManager
 import org.eclipse.jetty.http._
-import org.eclipse.jetty.io.Buffer
-import org.eclipse.jetty.io.Connection
-import org.eclipse.jetty.io.EndPoint
+import org.eclipse.jetty.io.{Buffer, Connection, EndPoint}
 import org.eclipse.jetty.io.nio.IndirectNIOBuffer
-import org.eclipse.jetty.server.HttpConnection
-import org.eclipse.jetty.server.Request
-import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.{HttpConnection, Request, Server}
 import org.eclipse.jetty.server.handler.ConnectHandler
 import org.eclipse.jetty.server.ssl.SslSocketConnector
-import org.eclipse.jetty.util.IO
-import org.eclipse.jetty.util.StringMap
+import org.eclipse.jetty.util.{IO, StringMap}
 
-import org.apache.commons.logging.Log
-import org.apache.commons.logging.LogFactory
-import javax.net.ssl.HttpsURLConnection
-import javax.net.ssl.SSLHandshakeException
+import org.apache.commons.logging.{Log, LogFactory}
+import javax.net.ssl.{HttpsURLConnection, SSLHandshakeException}
 import javax.servlet.ServletException
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.InputStream
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
+import java.io.{File, FileOutputStream, IOException, InputStream}
 import java.lang.reflect.Field
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLConnection
+import java.net.{HttpURLConnection, URL, URLConnection, MalformedURLException}
 import java.nio.channels.SocketChannel
-import java.util.Enumeration
-import java.util.Map
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentMap
+import java.util.{Enumeration, Map}
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap}
 
 import scala.util.control.Breaks._
 import scala.collection._
@@ -117,8 +102,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
       }
 
       proxyPlainTextRequest(baseRequest, response)
-    }
-    catch {
+    } catch {
       case e:Exception => {
         log.warn("Could not proxy " + url + ", exception: " + e)
         if (!response.isCommitted())
@@ -270,7 +254,30 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
   protected def proxyPlainTextRequest(request:Request, response:javax.servlet.http.HttpServletResponse) : Long = {
     val startMs = System.currentTimeMillis
-    val url = new URL(request.getUri.toString)
+
+    var url:URL = null
+    try {
+      url = new URL(request.getUri.toString)
+    } catch {
+      case e:MalformedURLException => {
+        log.info("relative URL, constructing absolute from Host header")
+        val hostport = (request
+                        .getHeaders("Host")
+                        .nextElement
+                        .asInstanceOf[String]
+                        .split(":"))
+        var host = hostport(0)
+        if (host == "localhost.proxy") {
+          host = "localhost"
+        }
+        var port = -1
+        if (hostport.length == 2) {
+          port = hostport(1).toInt
+        }
+        url = new URL("http", host, port, request.getUri.toString)
+        log.info("using constructed absolute URL: " + url)
+      }
+    }
 
     val connection = url.openConnection()
     connection.setAllowUserInteraction(false)
@@ -357,8 +364,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
       // Connect
       connection.connect()
-    }
-    catch {
+    } catch {
       case e:Exception => {
         //LogSupport.ignore(log, e)
       }
@@ -393,8 +399,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     if (proxy_in == null) {
       try {
         proxy_in = connection.getInputStream()
-      }
-      catch {
+      } catch {
         case e:Exception => {
           //                LogSupport.ignore(log, e)
           proxy_in = http.getErrorStream()
@@ -471,8 +476,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
             } else {
               throw new RuntimeException("Can't start SslRelay: server is not started (perhaps it was just shut down?)")
             }
-          }
-          catch {
+          } catch {
             case e:Exception => {
               e.printStackTrace()
               throw e
