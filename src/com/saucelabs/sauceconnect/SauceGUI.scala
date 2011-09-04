@@ -137,7 +137,7 @@ class SauceGUI {
     val start = System.currentTimeMillis()
     val clock = new Timer(30, new ActionListener() {
       def actionPerformed(e: ActionEvent) {
-        val lines = logPane.getText.count(x => x == '\n')
+        val lines = logPane.getText.count(_ == '\n')
         if (lines == 1) {
           // assume Jython takes ~5 seconds to start up
           val progress = (500.0-(1000000.0/((System.currentTimeMillis()-start)+2000)))
