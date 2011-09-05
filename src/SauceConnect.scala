@@ -74,7 +74,7 @@ object SauceConnect {
 }
 
 class SauceConnect (args: Array[String]) {
-    val BUILD = 15
+    val BUILD = 16
     val RELEASE = 15
     var commandLineArguments:CommandLine = null
     var liteMode:Boolean = false
