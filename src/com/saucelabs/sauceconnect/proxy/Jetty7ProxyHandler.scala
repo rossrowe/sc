@@ -30,12 +30,12 @@ object Counter {
 }
 
 class InsensitiveStringSet extends mutable.HashSet[String] {
-  override def contains(elem:String) : Boolean = {
+  override def contains(elem: String): Boolean = {
     this.iterator exists (elem.toLowerCase == _.toLowerCase)
   }
 }
 
-class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler {
+class Jetty7ProxyHandler(trustAllSSLCertificates: Boolean) extends ConnectHandler {
   protected val log = LogFactory.getLog(this.getClass)
 
   protected def useCyberVillains = true
@@ -76,7 +76,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
 
   protected val cache = new LinkedHashMap[String, String]()
 
-  override def handle(target:String, baseRequest:Request, request:javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
+  override def handle(target: String, baseRequest: Request, request: javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
     if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod)) {
       val host = request.getRequestURL.toString
       log.debug("CONNECT request for " + host)
@@ -112,7 +112,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
   }
 
 
-  protected def isSeleniumUrl(url:String) : Boolean = {
+  protected def isSeleniumUrl(url: String): Boolean = {
     val slashSlash = url.indexOf("//")
     if (slashSlash == -1) {
       return false
@@ -148,7 +148,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
    * @throws ServletException if an application error occurs
    * @throws IOException      if an I/O error occurs
    */
-  protected override def handleConnect(baseRequest:Request, request:HttpServletRequest, response:HttpServletResponse, serverAddress:String) : Unit = {
+  protected override def handleConnect(baseRequest: Request, request: HttpServletRequest, response: HttpServletResponse, serverAddress: String): Unit = {
     if (!handleAuthentication(request, response, serverAddress)) return
 
     var host = serverAddress
@@ -194,7 +194,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     val bodyBuffer = httpConnection.getParser().asInstanceOf[HttpParser].getBodyBuffer()
     var length = if (headerBuffer == null) 0 else headerBuffer.length()
     length += (if (bodyBuffer == null) 0 else bodyBuffer.length())
-    var buffer:IndirectNIOBuffer = null
+    var buffer: IndirectNIOBuffer = null
     if (length > 0) {
       buffer = new IndirectNIOBuffer(length)
       if (headerBuffer != null) {
@@ -207,7 +207,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
       }
     }
 
-    var context:ConcurrentMap[String, Object] = new ConcurrentHashMap[String, Object]()
+    var context: ConcurrentMap[String, Object] = new ConcurrentHashMap[String, Object]()
     prepareContext(request, context)
 
     val clientToProxy = prepareConnections(context, channel, buffer)
@@ -225,11 +225,11 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
   }
 
 
-  def validateDestination(request:Request, host:String) : Boolean = {
+  def validateDestination(request: Request, host: String): Boolean = {
     return _ProxySchemes.contains(request.getScheme()) && super.validateDestination(host)
   }
 
-  protected def upgradeConnection(request:HttpServletRequest, response:HttpServletResponse, connection:Connection) = {
+  protected def upgradeConnection(request: HttpServletRequest, response: HttpServletResponse, connection: Connection) = {
     // Set the new connection as request attribute and change the status to 101
     // so that Jetty understands that it has to upgrade the connection
     request.setAttribute("org.eclipse.jetty.io.Connection", connection)
@@ -237,7 +237,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     log.debug("Upgraded connection to " + connection)
   }
 
-  protected def prepareConnections(context:ConcurrentMap[String, Object], channel:SocketChannel, buffer:Buffer) = {
+  protected def prepareConnections(context: ConcurrentMap[String, Object], channel: SocketChannel, buffer: Buffer) = {
     val httpConnection = HttpConnection.getCurrentConnection()
     val proxyToServer = newProxyToServerConnection(context, buffer)
     val clientToProxy = newClientToProxyConnection(context, channel, httpConnection.getEndPoint(), httpConnection.getTimeStamp())
@@ -246,16 +246,16 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     clientToProxy
   }
 
-  protected def connectToServer(request:HttpServletRequest, host:String, port:Int) : SocketChannel = {
+  protected def connectToServer(request: HttpServletRequest, host: String, port: Int): SocketChannel = {
     val channel = connect(request, host, port)
     channel.configureBlocking(false)
     return channel
   }
 
-  protected def proxyPlainTextRequest(request:Request, response:javax.servlet.http.HttpServletResponse) : Long = {
+  protected def proxyPlainTextRequest(request: Request, response: javax.servlet.http.HttpServletResponse): Long = {
     val startMs = System.currentTimeMillis
 
-    var url:URL = null
+    var url: URL = null
     try {
       url = new URL(request.getUri.toString)
     } catch {
@@ -283,7 +283,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     connection.setAllowUserInteraction(false)
 
     // Set method
-    var http:HttpURLConnection = null
+    var http: HttpURLConnection = null
     if (connection.isInstanceOf[HttpURLConnection]) {
       http = connection.asInstanceOf[HttpURLConnection]
       http.setRequestMethod(request.getMethod)
@@ -370,7 +370,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
       }
     }
 
-    var proxy_in:InputStream = null
+    var proxy_in: InputStream = null
 
     // handle status codes etc.
     var code = -1
@@ -433,7 +433,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     response.setHeader(HttpHeaders.LAST_MODIFIED, null) // Stop caching...
 
     // Handled
-    var bytesCopied:Long = -1
+    var bytesCopied: Long = -1
     request.setHandled(true)
     if (proxy_in != null) {
       bytesCopied = IOProxy.proxy(proxy_in, response.getOutputStream())
@@ -446,11 +446,11 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     return bytesCopied
   }
 
-  protected def customizeConnection(request:Request, connection:URLConnection) = {}
+  protected def customizeConnection(request: Request, connection: URLConnection) = {}
 
 
-  protected def getSslRelayOrCreateNew(uri:HttpURI, addrPort:Int, server:Server) : SslRelay = {
-    var connector:SslRelay = null
+  protected def getSslRelayOrCreateNew(uri: HttpURI, addrPort: Int, server: Server): SslRelay = {
+    var connector: SslRelay = null
     _sslMap.synchronized {
       val host = uri.getHost()
       var connector = _sslMap.get(host).getOrElse(null)
@@ -489,7 +489,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     return connector
   }
 
-  protected def wireUpSslWithRemoteService(host:String, listener:SslRelay) = {
+  protected def wireUpSslWithRemoteService(host: String, listener: SslRelay) = {
     // grab a keystore that has been signed by a CA cert that has already been imported in to the browser
     // note: this logic assumes the tester is using *custom and has imported the CA cert in to IE/Firefox/etc
     // the CA cert can be found at http://dangerous-certificate-authority.openqa.org
@@ -515,7 +515,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     listener.setNukeDirOrFile(keystore)
   }
 
-  protected def wireUpSslWithCyberVilliansCA(host:String, listener:SslRelay) = {
+  protected def wireUpSslWithCyberVilliansCA(host: String, listener: SslRelay) = {
     try {
       val root = File.createTempFile("seleniumSslSupport", host)
       root.delete()
@@ -535,14 +535,14 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
     }
   }
 
-  class SslRelay(addr:Int) extends SslSocketConnector {
-    var nukeDirOrFile:File = null
+  class SslRelay(addr: Int) extends SslSocketConnector {
+    var nukeDirOrFile: File = null
 
-    def setNukeDirOrFile(nukeDirOrFile:File) = {
+    def setNukeDirOrFile(nukeDirOrFile: File) = {
       this.nukeDirOrFile = nukeDirOrFile
     }
 
-    override def customize(endpoint:EndPoint, request:Request) = {
+    override def customize(endpoint: EndPoint, request: Request) = {
       super.customize(endpoint, request)
       val uri = request.getUri()
 

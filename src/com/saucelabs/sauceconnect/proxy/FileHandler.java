@@ -18,9 +18,9 @@ limitations under the License.
 // Copyright 2008 Google Inc.  All Rights Reserved.
 /*
  * Adapted from the Selenium project under the Apache License 2.0
- * 
+ *
  * Portions Copyright 2011 Sauce Labs, Inc
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -58,12 +58,11 @@ public class FileHandler {
 
   public static void copyResource(File outputDir, Class<?> forClassLoader, String... names)
       throws IOException {
-    Zip zip = new Zip();
 
     for (String name : names) {
       InputStream is = locateResource(forClassLoader, name);
       try {
-        zip.unzipFile(outputDir, is, name);
+        Zip.unzipFile(outputDir, is, name);
       } finally {
         Cleanly.close(is);
       }
@@ -268,7 +267,7 @@ public class FileHandler {
     try {
       reader = new BufferedReader(new FileReader(toRead));
       StringBuilder builder = new StringBuilder();
-    
+
       char[] buffer = new char[4096];
       int read;
       while ((read = reader.read(buffer)) != -1) {
@@ -276,7 +275,7 @@ public class FileHandler {
         System.arraycopy(buffer, 0, target, 0, read);
         builder.append(target);
       }
-    
+
       return builder.toString();
     } finally {
       Cleanly.close(reader);
