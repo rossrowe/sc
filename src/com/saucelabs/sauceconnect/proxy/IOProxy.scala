@@ -40,21 +40,23 @@ object IOProxy {
    */
   def proxy(in: InputStream, out: OutputStream, count: Long): Long = {
     val buffer = new Array[Byte](BUFFER_SIZE)
-    var len = 0
     var numCopied = 0
     var c = count
+    var read_size = BUFFER_SIZE
 
     // count < 0 will read until EOF
-    while (c != 0) breakable {
-      len = in.read(buffer, 0, math.min(c, BUFFER_SIZE).toInt)
+    breakable {
+      while (c != 0) {
+        if (0 < c && c < BUFFER_SIZE) {
+          read_size = c.toInt
+        }
+        val len = in.read(buffer, 0, read_size)
+        if (len == -1) break
 
-      if (len == -1) {
-        break
+        out.write(buffer, 0, len)
+        numCopied += len
+        if (c > 0) { c -= len }
       }
-
-      out.write(buffer, 0, len)
-      numCopied += len
-      if (c > 0) { c -= len }
     }
 
     return numCopied
@@ -65,21 +67,23 @@ object IOProxy {
    */
   def proxy(in: Reader, out: Writer, count: Long): Long = {
     val buffer = new Array[Char](BUFFER_SIZE)
-    var len = 0
     var numCopied = 0L
     var c = count
+    var read_size = BUFFER_SIZE
 
     // count < 0 will read until EOF
-    while (c != 0) breakable {
-      len = in.read(buffer, 0, math.min(c, BUFFER_SIZE).toInt)
+    breakable {
+      while (c != 0) {
+        if (0 < c && c < BUFFER_SIZE) {
+          read_size = c.toInt
+        }
+        val len = in.read(buffer, 0, read_size)
+        if (len == -1) break
 
-      if (len == -1) {
-        break
+        out.write(buffer, 0, len)
+        numCopied += len
+        if (c > 0) { c -= len }
       }
-
-      out.write(buffer, 0, len)
-      numCopied += len
-      if (c > 0) { c -= len }
     }
 
     return numCopied

@@ -22,33 +22,24 @@ import java.security.GeneralSecurityException
 import javax.net.ssl._
 
 object TrustEverythingSSLTrustManager {
-  var socketFactory: SSLSocketFactory = null
-
   /**
-   * Returns an SSLSocketFactory that will trust all SSL certificates this is suitable for passing to
+   * Initialize an SSLSocketFactory that will trust all SSL certificates this is suitable for passing to
    * HttpsURLConnection, either to its instance method setSSLSocketFactory, or to its static method
    * setDefaultSSLSocketFactory.
    * @see HttpsURLConnection#setSSLSocketFactory(SSLSocketFactory)
    * @see HttpsURLConnection#setDefaultSSLSocketFactory(SSLSocketFactory)
-   * @return SSLSocketFactory suitable for passing to HttpsUrlConnection
    */
-  def getTrustingSSLSocketFactory(): SSLSocketFactory = {
-    this.synchronized {
-      if (socketFactory != null) { return socketFactory }
-      val sc = SSLContext.getInstance("SSL")
-      sc.init(null,
-              Array(new TrustEverythingSSLTrustManager(): TrustManager),
-              null)
-      return sc.getSocketFactory()
-    }
-  }
+  val sc = SSLContext.getInstance("SSL")
+  sc.init(null,
+          Array(new TrustEverythingSSLTrustManager(): TrustManager),
+          null)
+  val socketFactory = sc.getSocketFactory()
 
   /** Automatically trusts all SSL certificates in the current process this is dangerous.  You should
    * probably prefer to configure individual HttpsURLConnections with trustAllSSLCertificates
    * @see #trustAllSSLCertificates(HttpsURLConnection)
    */
   def trustAllSSLCertificatesUniversally() = {
-    getTrustingSSLSocketFactory()
     HttpsURLConnection.setDefaultSSLSocketFactory(socketFactory)
   }
 
@@ -57,7 +48,6 @@ object TrustEverythingSSLTrustManager {
    * @param connection an HttpsURLConnection which will be configured to trust all certs
    */
   def trustAllSSLCertificates(connection: HttpsURLConnection) = {
-    getTrustingSSLSocketFactory()
     connection.setSSLSocketFactory(socketFactory)
     connection.setHostnameVerifier(new HostnameVerifier() {
       def verify(s: String, sslSession: SSLSession) = true

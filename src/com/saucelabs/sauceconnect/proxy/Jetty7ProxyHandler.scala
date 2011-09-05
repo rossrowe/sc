@@ -15,7 +15,8 @@ import javax.servlet.ServletException
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 import java.io.{File, FileOutputStream, IOException, InputStream}
 import java.lang.reflect.Field
-import java.net.{HttpURLConnection, URL, URLConnection, MalformedURLException}
+import java.net.{HttpURLConnection, URL, URLConnection, MalformedURLException,
+                 UnknownHostException}
 import java.nio.channels.SocketChannel
 import java.util.{Enumeration, Map}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap}
@@ -103,10 +104,18 @@ class Jetty7ProxyHandler(trustAllSSLCertificates: Boolean) extends ConnectHandle
 
       proxyPlainTextRequest(baseRequest, response)
     } catch {
+      case e:UnknownHostException => {
+        log.warn("Could not proxy " + url + ", exception: " + e)
+        if (!response.isCommitted()) {
+          response.sendError(400, "Could not proxy " + url + "\n" + e)
+        }
+      }
       case e:Exception => {
         log.warn("Could not proxy " + url + ", exception: " + e)
-        if (!response.isCommitted())
+        e.printStackTrace()
+        if (!response.isCommitted()) {
           response.sendError(400, "Could not proxy " + url + "\n" + e)
+        }
       }
     }
   }

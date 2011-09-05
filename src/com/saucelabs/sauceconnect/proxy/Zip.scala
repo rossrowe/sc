@@ -83,10 +83,12 @@ object Zip {
       zos.putNextEntry(entry)
 
       val buffer = new Array[Byte](4096)
-      while (true) breakable {
-        val len = fis.read(buffer)
-        if (len == -1) break
-        zos.write(buffer, 0, len)
+      breakable {
+        while (true) {
+          val len = fis.read(buffer)
+          if (len == -1) break
+          zos.write(buffer, 0, len)
+        }
       }
 
       fis.close()
@@ -121,14 +123,16 @@ object Zip {
     val zis = new ZipInputStream(source)
 
     try {
-      while (true) breakable {
-        val entry = zis.getNextEntry()
-        if (entry == null) break
-        val file = new File(outputDir, entry.getName)
-        if (entry.isDirectory) {
-          FileHandler.createDir(file)
-        } else {
-          unzipFile(outputDir, zis, entry.getName)
+      breakable {
+        while (true) {
+          val entry = zis.getNextEntry()
+          if (entry == null) break
+          val file = new File(outputDir, entry.getName)
+          if (entry.isDirectory) {
+            FileHandler.createDir(file)
+          } else {
+            unzipFile(outputDir, zis, entry.getName)
+          }
         }
       }
     } finally {
@@ -146,12 +150,14 @@ object Zip {
     val out = new BufferedOutputStream(new FileOutputStream(toWrite), BUF_SIZE)
     try {
       val buffer = new Array[Byte](BUF_SIZE)
-      while (true) breakable {
+      breakable {
+        while (true) {
 
-        val read = zipStream.read(buffer)
-        if (read == -1) break
+          val read = zipStream.read(buffer)
+          if (read == -1) break
 
-        out.write(buffer, 0, read)
+          out.write(buffer, 0, read)
+        }
       }
     } finally {
       out.close()
