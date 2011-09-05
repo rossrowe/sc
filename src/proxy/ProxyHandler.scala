@@ -36,7 +36,7 @@ class InsensitiveStringSet extends mutable.HashSet[String] {
   }
 }
 
-class Jetty7ProxyHandler(trustAllSSLCertificates: Boolean) extends ConnectHandler {
+class ProxyHandler(trustAllSSLCertificates: Boolean) extends ConnectHandler {
   protected val log = LogFactory.getLog(this.getClass)
 
   protected def useCyberVillains = true

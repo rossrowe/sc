@@ -40,7 +40,7 @@
 
   <target name="compile" depends="init"
         description="compile the source " >
-    <!-- Compile the java code from ${src} into ${build} -->
+    <!-- Compile the scala code from ${src} into ${build} -->
     <scalac classpathref="build.classpath" srcdir="${src}" destdir="${build}" scalacdebugging="true" target="jvm-1.5" deprecation="on">
       <include name="**/*.scala"/>
         <classpath>
@@ -52,6 +52,7 @@
             </fileset>
         </classpath>
     </scalac>
+    <!-- Compile the java code from ${src} into ${build} -->
     <javac srcdir="${src}" destdir="${build}" debug="on" includeAntRuntime="false" target="1.5">
         <classpath>
             <fileset dir="${scala.home}">

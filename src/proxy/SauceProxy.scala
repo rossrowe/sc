@@ -14,9 +14,8 @@
 //   limitations under the License.
 // ========================================================================
 
-package com.saucelabs.sauceconnect
+package com.saucelabs.sauceconnect.proxy
 
-import com.saucelabs.sauceconnect.proxy.Jetty7ProxyHandler
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ConnectHandler
 import org.eclipse.jetty.server.nio.SelectChannelConnector
@@ -33,7 +32,7 @@ class SauceProxy {
 
   server.addConnector(connector)
 
-  val handler = new Jetty7ProxyHandler(true)
+  val handler = new ProxyHandler(true)
   server.setHandler(handler)
 
   // Returns the local port of the first connector for the server.
@@ -42,6 +41,6 @@ class SauceProxy {
   def start() = this.server.start()
 
   def main(args:Array[String]) = {
-        new SauceProxy().start()
+    new SauceProxy().start()
   }
 }

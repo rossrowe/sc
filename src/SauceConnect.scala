@@ -16,6 +16,8 @@
 
 package com.saucelabs.sauceconnect
 
+import com.saucelabs.sauceconnect.proxy.SauceProxy
+
 import org.apache.commons.cli._
 import org.bouncycastle.util.encoders.Base64
 import util.parsing.json.JSON
