@@ -1,4 +1,4 @@
-import com.saucelabs.kgp.{KgpClient, Connect, ProxyServer}
+import com.saucelabs.kgp.{KgpClient, ProxyServer}
 
 object TunnelClient {
 

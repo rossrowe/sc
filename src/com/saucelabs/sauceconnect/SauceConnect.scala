@@ -47,7 +47,7 @@ object SauceConnect {
   }
 
   // Not threadsafe
-  def interpreter() : PythonInterpreter = {
+  def interpreter(): PythonInterpreter = {
     this.synchronized {
       if (_interpreter == null) {
         _interpreter = new PythonInterpreter()
@@ -66,8 +66,8 @@ object SauceConnect {
   }
 
   // Not threadsafe
-  def getHealthCheckInterval() : Integer = {
-    return interpreter.eval("sauce_connect.HEALTH_CHECK_INTERVAL").asInt() * 1000
+  def getHealthCheckInterval(): Long = {
+    return interpreter.eval("sauce_connect.HEALTH_CHECK_INTERVAL").asInt * 1000
   }
 }
 
@@ -161,7 +161,7 @@ class SauceConnect (args: Array[String]) {
   def generateArgsForSauceConnect(username: String,
                                   apikey: String,
                                   domain: String,
-                                  options: CommandLine) : PyList = {
+                                  options: CommandLine): PyList = {
     val args = new ArrayList[PyString]()
     args.add(new PyString("-u"))
     args.add(new PyString(username))
@@ -332,7 +332,7 @@ class SauceConnect (args: Array[String]) {
   def updateDefaultProxyHost(username: String,
                              password: String,
                              proxyHost: String,
-                             proxyPort: Integer,
+                             proxyPort: Int,
                              restURL: String) {
     try {
       val restEndpoint = new URL(restURL + "/v1/" + username + "/defaults")
@@ -348,7 +348,7 @@ class SauceConnect (args: Array[String]) {
         currentDefaults.remove("proxy-host")
       }
 
-      def toJson(m: Map[String, Any]) : String = {
+      def toJson(m: Map[String, Any]): String = {
         m.fold("{") {
           case (acc: String, (k: String, v: String)) => {
             (acc +
@@ -420,7 +420,7 @@ class SauceConnect (args: Array[String]) {
    * @throws org.json.simple.parser.ParseException
    *
    */
-  def getDownloadURL(localRelease: Integer) : String = {
+  def getDownloadURL(localRelease: Int): String = {
     val versionsURL = new URL("http://saucelabs.com/versions.json")
     val data = Source.fromInputStream(versionsURL.openStream()).mkString("")
     val versions = JSON.parseFull(data).get.asInstanceOf[Map[String, Any]]
@@ -429,7 +429,7 @@ class SauceConnect (args: Array[String]) {
     }
     val versionDetails = versions.get("Sauce Connect 2").get.asInstanceOf[Map[String, Any]]
     val remoteVersion = versionDetails.get("version").get.asInstanceOf[String]
-    val remoteRelease = Integer.valueOf(remoteVersion.substring(remoteVersion.indexOf("-r") + 2))
+    val remoteRelease = remoteVersion.substring(remoteVersion.indexOf("-r") + 2).toInt
     if (localRelease < remoteRelease) {
       return versionDetails.get("download_url").get.asInstanceOf[String]
     } else {

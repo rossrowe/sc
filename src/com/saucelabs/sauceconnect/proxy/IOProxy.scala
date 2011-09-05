@@ -17,85 +17,71 @@
  */
 package com.saucelabs.sauceconnect.proxy
 
-import scala.util.control.Breaks._
 
-import org.mortbay.util.IO
 import java.io._
 
+import scala.util.control.Breaks._
+
+
 object IOProxy {
-  // Copy Stream in to Stream out until EOF or exception.
-  def proxy(in:InputStream, out:OutputStream) : Long = proxy(in, out, -1)
-  def proxy(in:Reader, out:Writer) : Long = proxy(in, out, -1)
 
+  val BUFFER_SIZE = 8192
 
-  def proxy(in:InputStream, out:OutputStream, byteCount:Long) : Long = {
-    val buffer = new Array[Byte](IO.bufferSize)
+  /**
+   * Proxy Stream in to Stream out until EOF or exception.
+   */
+  def proxy(in: InputStream, out: OutputStream): Long = proxy(in, out, -1)
+  def proxy(in: Reader, out: Writer): Long = proxy(in, out, -1)
+
+  /**
+   * Proxy Stream in to Stream for count bytes or until EOF or exception.
+   *
+   * @return Copied bytes count or -1 if no bytes were read *and* EOF was reached
+   */
+  def proxy(in: InputStream, out: OutputStream, count: Long): Long = {
+    val buffer = new Array[Byte](BUFFER_SIZE)
     var len = 0
-    var returnVal:Long = 0
-    var c = byteCount
+    var numCopied = 0
+    var c = count
 
-    if (c >= 0) {
-      while (c > 0) {
-        if (c < IO.bufferSize)
-          len = in.read(buffer, 0, c.asInstanceOf[Int])
-        else
-          len = in.read(buffer, 0, IO.bufferSize)
+    // count < 0 will read until EOF
+    while (c != 0) breakable {
+      len = in.read(buffer, 0, math.min(c, BUFFER_SIZE).toInt)
 
-        if (len == -1) {
-          return returnVal
-        }
-        returnVal += len
-
-        c -= len
-        out.write(buffer, 0, len)
+      if (len == -1) {
+        break
       }
-    } else {
-      while (true) {
-        len = in.read(buffer, 0, IO.bufferSize)
-        if (len == -1) {
-          return returnVal
-        }
-        returnVal += len
-        out.write(buffer, 0, len)
-      }
+
+      out.write(buffer, 0, len)
+      numCopied += len
+      if (c > 0) { c -= len }
     }
 
-    return returnVal
+    return numCopied
   }
 
-  def proxy(in:Reader, out:Writer, byteCount:Long) : Long = {
-    val buffer = new Array[Char](IO.bufferSize)
+  /**
+   * Proxy Reader to Writer for count characters or until EOF or exception.
+   */
+  def proxy(in: Reader, out: Writer, count: Long): Long = {
+    val buffer = new Array[Char](BUFFER_SIZE)
     var len = 0
-    var returnVal:Long = 0
-    var c = byteCount
+    var numCopied = 0L
+    var c = count
 
-    if (c >= 0) {
-      while (c > 0) {
-        if (c < IO.bufferSize)
-          len = in.read(buffer, 0, c.asInstanceOf[Int])
-        else
-          len = in.read(buffer, 0, IO.bufferSize)
+    // count < 0 will read until EOF
+    while (c != 0) breakable {
+      len = in.read(buffer, 0, math.min(c, BUFFER_SIZE).toInt)
 
-        if (len == -1) {
-          return returnVal
-        }
-        returnVal += len
-
-        c -= len
-        out.write(buffer, 0, len)
+      if (len == -1) {
+        break
       }
-    } else {
-      while (true) {
-        len = in.read(buffer, 0, IO.bufferSize)
-        if (len == -1) {
-          return returnVal
-        }
-        returnVal += len
-        out.write(buffer, 0, len)
-      }
+
+      out.write(buffer, 0, len)
+      numCopied += len
+      if (c > 0) { c -= len }
     }
 
-    return returnVal
+    return numCopied
   }
-
 }

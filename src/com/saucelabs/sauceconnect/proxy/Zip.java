@@ -52,7 +52,7 @@ public class Zip {
 
     try {
       zip(inputDir, bos);
-      return new Base64Encoder().encode(bos.toByteArray());
+      return Base64Encoder.encode(bos.toByteArray());
     } finally {
       Cleanly.close(bos);
     }
@@ -92,7 +92,7 @@ public class Zip {
   }
 
   public void unzip(String source, File outputDir) throws IOException {
-    byte[] bytes = new Base64Encoder().decode(source);
+    byte[] bytes = Base64Encoder.decode(source);
 
     ByteArrayInputStream bis = null;
     try {

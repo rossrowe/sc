@@ -39,11 +39,11 @@ class ReverseSSH {
   var ssh_port = 0
   var se_port = 0
 
-  private var tunnelConnection:Connection = null
-  private var readyfile:File = null
+  private var tunnelConnection: Connection = null
+  private var readyfile: File = null
 
-  private def getTunnelSetting(name:String) : String = {
-    return this.tunnel.__getattr__(name).asString()
+  private def getTunnelSetting(name:String): String = {
+    return this.tunnel.__getattr__(name).asString
   }
 
   def run(readyfile:String) = {
@@ -57,12 +57,12 @@ class ReverseSSH {
     if (this.readyfile != null) {
       this.readyfile.createNewFile()
     }
-    val forwarded_health = new HealthChecker(this.host, ports)
+    val forwarded_health = new HealthChecker(host, ports)
     val health_check_interval = SauceConnect.getHealthCheckInterval()
     while (true) {
       forwarded_health.check()
       val start = System.currentTimeMillis()
-      val t = new Timeout(health_check_interval){
+      val t = new Timeout(health_check_interval) {
         @Override
         @throws(classOf[Exception])
         def longRunningTask() = {
@@ -88,15 +88,17 @@ class ReverseSSH {
     tunnelConnection.connect()
     tunnelConnection.authenticateWithPassword(user, password)
     for (index <- 0 until ports.length) {
-      val remotePort = Integer.valueOf(tunnel_ports(index))
-      val localPort = Integer.valueOf(ports(index))
-      tunnelConnection.requestRemotePortForwarding("0.0.0.0", remotePort, this.host,
+      val remotePort = tunnel_ports(index).toInt
+      val localPort = ports(index).toInt
+      tunnelConnection.requestRemotePortForwarding("0.0.0.0",
+                                                   remotePort,
+                                                   this.host,
                                                    localPort)
     }
     log.info("SSH Connected. You may start your tests.")
   }
 
-  private def reconnect() : Unit = {
+  private def reconnect(): Unit = {
     log.info("SSH connection failed. Re-connecting ..")
     for(attempts <- 0 until MAX_RECONNECT_ATTEMPTS) {
       Thread.sleep(3000)

@@ -22,7 +22,7 @@ import org.apache.commons.logging.Log
 import org.apache.commons.logging.LogFactory
 import org.python.core._
 
-import com.saucelabs.kgp.{KgpClient, Connect, Close, ProxyServer}
+import com.saucelabs.kgp.{KgpClient, ProxyServer}
 
 class KgpTunnel {
   private val MAX_RECONNECT_ATTEMPTS = 3
@@ -87,8 +87,8 @@ class KgpTunnel {
     log.info("Selenium proxy listening on port " + this.se_port)
     //client.authenticateWithPassword(user, password)
     for (index <- 0 until ports.length) {
-      val remotePort = Integer.valueOf(tunnel_ports(index))
-      val localPort = Integer.valueOf(ports(index))
+      val remotePort = tunnel_ports(index).toInt
+      val localPort = ports(index).toInt
       //client.requestRemotePortForwarding("0.0.0.0", remotePort, this.host,
       //                                             localPort)
     }

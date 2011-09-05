@@ -359,7 +359,7 @@ class Jetty7ProxyHandler(trustAllSSLCertificates:Boolean) extends ConnectHandler
       val in = request.getInputStream()
       if (hasContent) {
         connection.setDoOutput(true)
-        IO.copy(in, connection.getOutputStream())
+        IOProxy.proxy(in, connection.getOutputStream())
       }
 
       // Connect
