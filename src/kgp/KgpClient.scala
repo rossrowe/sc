@@ -541,6 +541,7 @@ class ProxyServer(client: KgpClient, port: Int) {
     } catch {
       case e: Exception => {
         log.warn("Exception proxying: " + e)
+        throw e
       }
     }
   }
