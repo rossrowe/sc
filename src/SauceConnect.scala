@@ -272,7 +272,7 @@ class SauceConnect (args: Array[String]) {
       if (!commandLineArguments.hasOption("dont-update-proxy-host")) {
         val port = 33128
         updateDefaultProxyHost(commandLineArguments.getArgs()(0), commandLineArguments.getArgs()(1), domain, port,
-                               commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest"))
+                               commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest/v1"))
       }
       SauceConnect.interpreter.set(
         "arglist",
@@ -325,7 +325,7 @@ class SauceConnect (args: Array[String]) {
     if (!liteMode) {
       if (commandLineArguments != null && !commandLineArguments.hasOption("dont-update-proxy-host")) {
         updateDefaultProxyHost(commandLineArguments.getArgs()(0), commandLineArguments.getArgs()(1), null, 0,
-                               commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest"))
+                               commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest/v1"))
       }
     }
     SauceConnect.interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)")
@@ -337,7 +337,7 @@ class SauceConnect (args: Array[String]) {
                              proxyPort: Int,
                              restURL: String) {
     try {
-      val restEndpoint = new URL(restURL + "/v1/" + username + "/defaults")
+      val restEndpoint = new URL(restURL + "/" + username + "/defaults")
       var auth = username + ":" + password
       auth = "Basic " + new String(Base64.encode(auth.getBytes()))
       val connection = restEndpoint.openConnection()

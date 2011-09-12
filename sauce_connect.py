@@ -182,10 +182,11 @@ class TunnelMachine(object):
     def _provision_tunnel(self):
         # Shutdown any tunnel using a requested domain
         kill_list = set()
-        for doc in self._get_doc(self.base_url):
-            if not doc.get('DomainNames'):
+        for doc in self._get_doc(self.base_url + "?full=1"):
+            print doc
+            if not doc.get('domain_names'):
                 continue
-            if set(doc['DomainNames']) & self.domains:
+            if set(doc['domain_names']) & self.domains:
                 kill_list.add(doc['id'])
         if kill_list:
             logger.info(
@@ -196,11 +197,12 @@ class TunnelMachine(object):
                         "Shutting down old tunnel host: %s" % tunnel_id)
                     url = "%s/%s" % (self.base_url, tunnel_id)
                     doc = self._get_doc(DeleteRequest(url=url))
-                    if not doc.get('ok'):
-                        logger.warning("Old tunnel host failed to shutdown?")
+                    if (not doc.get('result') or
+                        not doc.get('id') == tunnel_id):
+                        logger.warning("Old tunnel host failed to shut down.  Status: %s", doc)
                         continue
                     doc = self._get_doc(url)
-                    while doc.get('Status') not in ["halting", "terminated"]:
+                    while doc.get('status') not in ["halting", "terminated"]:
                         logger.debug(
                             "Waiting for old tunnel host to start halting")
                         time.sleep(REST_POLL_WAIT)
@@ -209,18 +211,18 @@ class TunnelMachine(object):
 
         # Request a tunnel machine
         headers = {"Content-Type": "application/json"}
-        data = json.dumps(dict(DomainNames=list(self.domains),
-                               Metadata=self.metadata,
-                               SSHPort=self.ssh_port,
-                               UseCachingProxy=self.boost_mode,
-                               UseKgp=not self.use_ssh,
-                               FastFailRegexps=self.fast_fail_regexps.split(',')))
+        data = json.dumps(dict(domain_names=list(self.domains),
+                               metadata=self.metadata,
+                               ssh_port=self.ssh_port,
+                               use_caching_proxy=self.boost_mode,
+                               use_kgp=not self.use_ssh,
+                               fast_fail_regexps=self.fast_fail_regexps.split(',')))
         logger.info("%s" % data)
         req = urllib2.Request(url=self.base_url, headers=headers, data=data)
         doc = self._get_doc(req)
         if doc.get('error'):
             raise TunnelMachineProvisionError(doc['error'])
-        for key in ['ok', 'id']:
+        for key in ['id']:
             if not doc.get(key):
                 raise TunnelMachineProvisionError(
                     "Document for provisioned tunnel host is missing the key "
@@ -234,7 +236,7 @@ class TunnelMachine(object):
         previous_status = None
         while True:
             doc = self._get_doc(self.url)
-            status = doc.get('Status')
+            status = doc.get('status')
             if status == "running":
                 break
             if status in ["halting", "terminated"]:
@@ -243,7 +245,7 @@ class TunnelMachine(object):
                 logger.info("Tunnel host is %s .." % status)
             previous_status = status
             time.sleep(REST_POLL_WAIT)
-        self.host = doc['Host']
+        self.host = doc['host']
         logger.info("Tunnel host is running at %s" % self.host)
 
     def shutdown(self):
@@ -263,12 +265,13 @@ class TunnelMachine(object):
             logger.debug("Shut down failed because: %s", str(e))
             self.is_shutdown = True  # fuhgeddaboudit
             return
-        assert doc.get('ok')
+        #assert doc.get('ok')
+        assert doc.get('id') == self.id
 
         previous_status = None
         while True:
             doc = self._get_doc(self.url)
-            status = doc.get('Status')
+            status = doc.get('status')
             if status == "terminated":
                 break
             if status != previous_status:
@@ -283,7 +286,7 @@ class TunnelMachine(object):
 
     def check_running(self):
         doc = self._get_doc(self.url)
-        if doc.get('Status') == "running":
+        if doc.get('status') == "running":
             return
         raise TunnelMachineError(
             "The tunnel host is no longer running. It may have been shutdown "
@@ -735,7 +738,7 @@ Performance tip:
     og.add_option("--use-ssh-config", action="store_true", default=False,
                   help="Use the local SSH config. WARNING: Turning this on "
                        "may break the script!")
-    og.add_option("--rest-url", default="https://saucelabs.com/rest",
+    og.add_option("--rest-url", default="https://saucelabs.com/rest/v1",
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--allow-unclean-exit", action="store_true", default=False,
                   help=optparse.SUPPRESS_HELP)
