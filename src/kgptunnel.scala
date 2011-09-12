@@ -101,7 +101,6 @@ class KgpTunnel {
     for(attempts <- 0 until MAX_RECONNECT_ATTEMPTS) {
       Thread.sleep(3000)
       val connector = new Timeout(10000) {
-        @throws(classOf[Exception])
         override def longRunningTask() = {
           connect()
         }

@@ -64,7 +64,6 @@ class ReverseSSH {
       val start = System.currentTimeMillis()
       val t = new Timeout(health_check_interval) {
         @Override
-        @throws(classOf[Exception])
         def longRunningTask() = {
           val s = tunnelConnection.openSession()
           s.close()
@@ -103,9 +102,7 @@ class ReverseSSH {
     for(attempts <- 0 until MAX_RECONNECT_ATTEMPTS) {
       Thread.sleep(3000)
       val connector = new Timeout(10000) {
-        @Override
-        @throws(classOf[Exception])
-        def longRunningTask() = {
+        override def longRunningTask() = {
           connect()
         }
       }

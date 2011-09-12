@@ -43,6 +43,5 @@ abstract class Timeout(millis:Long) extends Thread {
     def isSuccess() = success
     def isError() = error
 
-    @throws(classOf[Exception])
     def longRunningTask()
 }
