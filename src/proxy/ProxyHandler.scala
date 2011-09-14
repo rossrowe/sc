@@ -16,7 +16,7 @@ import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 import java.io.{File, FileOutputStream, IOException, InputStream}
 import java.lang.reflect.Field
 import java.net.{HttpURLConnection, URL, URLConnection, MalformedURLException,
-                 UnknownHostException}
+                 UnknownHostException, ConnectException}
 import java.nio.channels.SocketChannel
 import java.util.{Enumeration, Map}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap}
@@ -104,7 +104,7 @@ class ProxyHandler(trustAllSSLCertificates: Boolean) extends ConnectHandler {
 
       proxyPlainTextRequest(baseRequest, response)
     } catch {
-      case e:UnknownHostException => {
+      case e @ (_:UnknownHostException | _:ConnectException) => {
         log.warn("Could not proxy " + url + ", exception: " + e)
         if (!response.isCommitted()) {
           response.sendError(400, "Could not proxy " + url + "\n" + e)
