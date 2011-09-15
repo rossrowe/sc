@@ -44,52 +44,28 @@ import io.Source
 object SauceConnect {
   var _interpreter:PythonInterpreter = null
 
+  val BUILD = 16
+  val RELEASE = 15
+  var commandLineArguments:CommandLine = null
+  var liteMode:Boolean = false
+  var standaloneMode:Boolean = true
+  var restURL = ""
+  var username = ""
+  var apikey = ""
+  var strippedArgs = new PyList()
+
   def main(args: Array[String]) {
-    new SauceConnect(args).openConnection()
-  }
-
-  // Not threadsafe
-  def interpreter(): PythonInterpreter = {
-    this.synchronized {
-      if (_interpreter == null) {
-        _interpreter = new PythonInterpreter()
-        _interpreter.exec("import sauce_connect")
-      }
-      return _interpreter
-    }
-  }
-
-  def setInterpreterIfNull(anInterpreter: PythonInterpreter) {
-    this.synchronized {
-      if (_interpreter == null) {
-        _interpreter = anInterpreter
+    storeCommandLineArgs(args)
+    for (s <- args) {
+      if (s.equals("-l") || s.equals("--lite")) {
+        liteMode = true
+      } else {
+        strippedArgs.add(new PyString(s))
       }
     }
+    openConnection()
   }
 
-  // Not threadsafe
-  def getHealthCheckInterval(): Long = {
-    return interpreter.eval("sauce_connect.HEALTH_CHECK_INTERVAL").asInt * 1000
-  }
-}
-
-class SauceConnect (args: Array[String]) {
-    val BUILD = 16
-    val RELEASE = 15
-    var commandLineArguments:CommandLine = null
-    var liteMode:Boolean = false
-    var strippedArgs:PyList = null
-    var standaloneMode:Boolean = true
-
-  storeCommandLineArgs(args)
-  this.strippedArgs = new PyList()
-  for (s <- args) {
-    if (s.equals("-l") || s.equals("--lite")) {
-      liteMode = true
-    } else {
-      strippedArgs.add(new PyString(s))
-    }
-  }
 
   def storeCommandLineArgs(args: Array[String]) {
     val options = new Options()
@@ -140,13 +116,16 @@ class SauceConnect (args: Array[String]) {
           System.exit(0)
         }
       }
-      if (result.getArgs().length == 0) {
+      if (result.getArgs.length == 0) {
         throw new ParseException("Missing required arguments USERNAME, API_KEY")
       }
-      if (result.getArgs().length == 1) {
+      if (result.getArgs.length == 1) {
         throw new ParseException("Missing required argument API_KEY")
       }
-      this.commandLineArguments = result
+      commandLineArguments = result
+      restURL = commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest/v1")
+      username = commandLineArguments.getArgs()(0)
+      apikey = commandLineArguments.getArgs()(1)
     } catch {
       case e:ParseException => {
         System.err.println(e.getMessage)
@@ -160,9 +139,33 @@ class SauceConnect (args: Array[String]) {
     }
   }
 
-  def generateArgsForSauceConnect(username: String,
-                                  apikey: String,
-                                  domain: String,
+  // Not threadsafe
+  def interpreter(): PythonInterpreter = {
+    this.synchronized {
+      if (_interpreter == null) {
+        _interpreter = new PythonInterpreter()
+        _interpreter.exec("import sauce_connect")
+      }
+      return _interpreter
+    }
+  }
+
+  def setInterpreterIfNull(anInterpreter: PythonInterpreter) {
+    this.synchronized {
+      if (_interpreter == null) {
+        _interpreter = anInterpreter
+      }
+    }
+  }
+
+  // Not threadsafe
+  def getHealthCheckInterval(): Long = {
+    return interpreter.eval("sauce_connect.HEALTH_CHECK_INTERVAL").asInt * 1000
+  }
+
+
+
+  def generateArgsForSauceConnect(domain: String,
                                   options: CommandLine): PyList = {
     val args = new ArrayList[PyString]()
     args.add(new PyString("-u"))
@@ -178,11 +181,9 @@ class SauceConnect (args: Array[String]) {
     args.add(new PyString("--ssh-port"))
     args.add(new PyString("443"))
     args.add(new PyString("-b"))
+    args.add(new PyString("--rest-url"))
+    args.add(new PyString(restURL))
     if (options != null) {
-      if (options.hasOption('x')) {
-        args.add(new PyString("--rest-url"))
-        args.add(new PyString(options.getOptionValue('x')))
-      }
       if (options.hasOption('f')) {
         args.add(new PyString("--readyfile"))
           args.add(new PyString(options.getOptionValue('f')))
@@ -271,13 +272,11 @@ class SauceConnect (args: Array[String]) {
       }
       if (!commandLineArguments.hasOption("dont-update-proxy-host")) {
         val port = 33128
-        updateDefaultProxyHost(commandLineArguments.getArgs()(0), commandLineArguments.getArgs()(1), domain, port,
-                               commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest/v1"))
+        updateDefaultProxyHost(domain, port)
       }
       SauceConnect.interpreter.set(
         "arglist",
-        generateArgsForSauceConnect(commandLineArguments.getArgs()(0),
-                                    commandLineArguments.getArgs()(1), domain, commandLineArguments))
+        generateArgsForSauceConnect(domain, commandLineArguments))
     }
   }
 
@@ -285,10 +284,10 @@ class SauceConnect (args: Array[String]) {
     try {
       val proxy = new SauceProxy()
       proxy.start()
-      SauceConnect.interpreter.exec("options.ports = ['" + proxy.getPort() + "']")
+      SauceConnect.interpreter.exec("options.ports = ['" + proxy.getPort + "']")
     } catch {
       case e:Exception => {
-        System.err.println("Error starting proxy: " + e.getMessage())
+        System.err.println("Error starting proxy: " + e.getMessage)
         //only invoke a System.exit() if we are in standalone mode
         if (standaloneMode) {
           System.exit(2)
@@ -324,25 +323,21 @@ class SauceConnect (args: Array[String]) {
   def removeHandler() {
     if (!liteMode) {
       if (commandLineArguments != null && !commandLineArguments.hasOption("dont-update-proxy-host")) {
-        updateDefaultProxyHost(commandLineArguments.getArgs()(0), commandLineArguments.getArgs()(1), null, 0,
-                               commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest/v1"))
+        updateDefaultProxyHost(null, 0)
       }
     }
     SauceConnect.interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)")
   }
 
-  def updateDefaultProxyHost(username: String,
-                             password: String,
-                             proxyHost: String,
-                             proxyPort: Int,
-                             restURL: String) {
+  def updateDefaultProxyHost(proxyHost: String,
+                             proxyPort: Int) {
     try {
       val restEndpoint = new URL(restURL + "/" + username + "/defaults")
-      var auth = username + ":" + password
-      auth = "Basic " + new String(Base64.encode(auth.getBytes()))
+      var auth = username + ":" + apikey
+      auth = "Basic " + new String(Base64.encode(auth.getBytes))
       val connection = restEndpoint.openConnection()
       connection.setRequestProperty("Authorization", auth)
-      val data = Source.fromInputStream(connection.getInputStream()).mkString("")
+      val data = Source.fromInputStream(connection.getInputStream).mkString("")
       val currentDefaults = mutable.Map(JSON.parseFull(data).get.asInstanceOf[Map[String, Any]].toSeq: _*)
       if (proxyHost != null) {
         currentDefaults("proxy-host") = proxyHost + ":" + proxyPort

@@ -16,7 +16,10 @@
 
 package com.saucelabs.sauceconnect
 
-import java.io.{File, IOException}
+import org.bouncycastle.util.encoders.Base64
+import java.io.{File, IOException, OutputStreamWriter}
+import java.net.{HttpURLConnection, URL}
+import io.Source
 
 import org.apache.commons.logging.Log
 import org.apache.commons.logging.LogFactory
@@ -45,6 +48,35 @@ class KgpTunnel {
     return this.tunnel.__getattr__(name).asString()
   }
 
+  def checkProxy(): Boolean = {
+    val proxyURL = new URL("http://localhost:%d/" format (this.se_port))
+    val data = Source.fromInputStream(proxyURL.openStream()).mkString("")
+    return (data == "OK,ondemand alive")
+  }
+
+  def reportConnectedStatus() = {
+    try {
+      val reportURL = new URL("%s/%s/tunnels/%s/connected" format
+                              (SauceConnect.restURL,
+                               SauceConnect.username,
+                               getTunnelSetting("id")))
+      var auth = SauceConnect.username + ":" + SauceConnect.apikey
+      auth = "Basic " + new String(Base64.encode(auth.getBytes))
+      val conn = reportURL.openConnection.asInstanceOf[HttpURLConnection]
+      conn.setDoOutput(true)
+      conn.setRequestMethod("POST")
+      conn.setRequestProperty("Authorization", auth)
+      val data = Source.fromInputStream(conn.getInputStream).mkString("")
+      conn.getInputStream.close()
+    } catch {
+      case e:IOException => {
+        System.err.println("Error connecting to Sauce OnDemand REST API: ")
+        e.printStackTrace()
+      }
+    }
+  }
+
+
   def run(readyfile:String) = {
     if (readyfile != null) {
       this.readyfile = new File(readyfile)
@@ -61,9 +93,15 @@ class KgpTunnel {
       this.readyfile.createNewFile()
     }
     val health_check_interval = SauceConnect.getHealthCheckInterval
+    val report_interval = 60
+    var last_report = 0L
     while (true) {
       val start = System.currentTimeMillis()
       forwarded_health.check()
+      if (start - last_report > report_interval) {
+        if (checkProxy()) { reportConnectedStatus() }
+        last_report = start
+      }
       if ((health_check_interval - (System.currentTimeMillis()-start)) > 0) {
         Thread.sleep(health_check_interval - (System.currentTimeMillis()-start))
       }
