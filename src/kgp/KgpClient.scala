@@ -523,27 +523,32 @@ class ProxyTcpHandler(client: KgpClient) extends SimpleChannelUpstreamHandler {
 
 
 class ProxyServer(client: KgpClient, port: Int) {
+  var channel: Channel = null
   private val log = LogFactory.getLog(this.getClass)
   def serve() {
     try {
-    val cf = new NioServerSocketChannelFactory(
-      Executors.newSingleThreadScheduledExecutor,
-      Executors.newSingleThreadScheduledExecutor,
-      1)
-    val bootstrap = new ServerBootstrap(cf)
-    bootstrap.setPipelineFactory(new ChannelPipelineFactory {
-      override def getPipeline: ChannelPipeline = {
-        val handler = new ProxyTcpHandler(client)
-        Channels.pipeline(handler)
-      }
-    })
-    bootstrap.bind(new InetSocketAddress(port))
+      val cf = new NioServerSocketChannelFactory(
+        Executors.newSingleThreadScheduledExecutor,
+        Executors.newSingleThreadScheduledExecutor,
+        1)
+      val bootstrap = new ServerBootstrap(cf)
+      bootstrap.setPipelineFactory(new ChannelPipelineFactory {
+        override def getPipeline: ChannelPipeline = {
+          val handler = new ProxyTcpHandler(client)
+          Channels.pipeline(handler)
+        }
+      })
+      channel = bootstrap.bind(new InetSocketAddress(port))
     } catch {
-      case e: Exception => {
-        log.warn("Exception proxying: " + e)
-        throw e
-      }
+        case e: Exception => {
+          log.warn("Exception proxying: " + e)
+          throw e
+        }
     }
+  }
+
+  def getPort(): Int = {
+    return channel.getLocalAddress.asInstanceOf[InetSocketAddress].getPort
   }
 }
 

@@ -25,6 +25,7 @@ import org.apache.commons.logging.Log
 import org.apache.commons.logging.LogFactory
 import org.python.core._
 
+import com.saucelabs.sauceconnect.proxy.SauceProxy
 import com.saucelabs.kgp.{KgpClient, ProxyServer}
 
 class KgpTunnel {
@@ -49,7 +50,7 @@ class KgpTunnel {
   }
 
   def checkProxy(): Boolean = {
-    val proxyURL = new URL("http://localhost:%d/" format (this.se_port))
+    val proxyURL = new URL("http://localhost:%d/" format (se_port))
     val data = Source.fromInputStream(proxyURL.openStream()).mkString("")
     return (data == "OK,ondemand alive")
   }
@@ -120,9 +121,21 @@ class KgpTunnel {
                            "{\"username\": \"" + user + "\", \"access_key\": \"" + password + "\"}")
     client.start()
     client.connect()
-    val proxyServer = new ProxyServer(client, this.se_port)
+    val proxyServer = new ProxyServer(client, 0)
     proxyServer.serve()
-    log.info("Selenium proxy listening on port " + this.se_port)
+
+    try {
+      val proxy = new SauceProxy(se_port, "localhost", proxyServer.getPort)
+      proxy.start()
+    } catch {
+      case e:Exception => {
+        System.err.println("Error starting proxy: " + e.getMessage)
+      }
+    }
+
+
+    log.info("Forwarding Selenium with ephemeral port " + proxyServer.getPort)
+    log.info("Selenium HTTP proxy listening on port " + se_port)
     //client.authenticateWithPassword(user, password)
     for (index <- 0 until ports.length) {
       val remotePort = tunnel_ports(index).toInt

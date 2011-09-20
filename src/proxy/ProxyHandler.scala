@@ -36,7 +36,7 @@ class InsensitiveStringSet extends mutable.HashSet[String] {
   }
 }
 
-class ProxyHandler(trustAllSSLCertificates: Boolean) extends ConnectHandler {
+class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) extends ConnectHandler {
   protected val log = LogFactory.getLog(this.getClass)
 
   protected def useCyberVillains = true
@@ -265,26 +265,31 @@ class ProxyHandler(trustAllSSLCertificates: Boolean) extends ConnectHandler {
     val startMs = System.currentTimeMillis
 
     var url: URL = null
-    try {
-      url = new URL(request.getUri.toString)
-    } catch {
-      case e:MalformedURLException => {
-        log.info("relative URL, constructing absolute from Host header")
-        val hostport = (request
-                        .getHeaders("Host")
-                        .nextElement
-                        .asInstanceOf[String]
-                        .split(":"))
-        var host = hostport(0)
-        if (host == "localhost.proxy") {
-          host = "localhost"
+    if (!sauceProxy.targetHost.isEmpty && sauceProxy.targetPort > 0) {
+      url = new URL("http", sauceProxy.targetHost, sauceProxy.targetPort,
+                    request.getUri.toString)
+    } else {
+      try {
+        url = new URL(request.getUri.toString)
+      } catch {
+        case e:MalformedURLException => {
+          log.info("relative URL, constructing absolute from Host header")
+          val hostport = (request
+                          .getHeaders("Host")
+                          .nextElement
+                          .asInstanceOf[String]
+                          .split(":"))
+            var host = hostport(0)
+          if (host == "localhost.proxy") {
+            host = "localhost"
+          }
+          var port = -1
+          if (hostport.length == 2) {
+            port = hostport(1).toInt
+          }
+          url = new URL("http", host, port, request.getUri.toString)
+          log.info("using constructed absolute URL: " + url)
         }
-        var port = -1
-        if (hostport.length == 2) {
-          port = hostport(1).toInt
-        }
-        url = new URL("http", host, port, request.getUri.toString)
-        log.info("using constructed absolute URL: " + url)
       }
     }
 

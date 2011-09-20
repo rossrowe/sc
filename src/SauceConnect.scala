@@ -50,6 +50,7 @@ object SauceConnect {
   var liteMode:Boolean = false
   var standaloneMode:Boolean = true
   var restURL = ""
+  var sePort = 0
   var username = ""
   var apikey = ""
   var strippedArgs = new PyList()
@@ -94,9 +95,9 @@ object SauceConnect {
     options.addOption("s", "ssh", false, null)
     options.addOption("d", "debug", false, "Enable verbose debugging")
     options.addOption("l", "lite", false, null)
-    val sePort = new Option("P", "se-port", true, null)
-    sePort.setArgName("PORT")
-    options.addOption(sePort)
+    val sePortOpt = new Option("P", "se-port", true, null)
+    sePortOpt.setArgName("PORT")
+    options.addOption(sePortOpt)
     val fastFail = new Option("F", "fast-fail-regexps", true, null)
     fastFail.setArgName("REGEXPS")
     options.addOption(fastFail)
@@ -123,6 +124,7 @@ object SauceConnect {
         throw new ParseException("Missing required argument API_KEY")
       }
       commandLineArguments = result
+      sePort = commandLineArguments.getOptionValue("se-port", "4445").toInt
       restURL = commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest/v1")
       username = commandLineArguments.getArgs()(0)
       apikey = commandLineArguments.getArgs()(1)
@@ -183,6 +185,8 @@ object SauceConnect {
     args.add(new PyString("-b"))
     args.add(new PyString("--rest-url"))
     args.add(new PyString(restURL))
+    args.add(new PyString("--se-port"))
+    args.add(new PyString(sePort.toString))
     if (options != null) {
       if (options.hasOption('f')) {
         args.add(new PyString("--readyfile"))
@@ -190,10 +194,6 @@ object SauceConnect {
       }
       if (options.hasOption('s')) {
         args.add(new PyString("--ssh"))
-      }
-      if (options.hasOption('P')) {
-        args.add(new PyString("--se-port"))
-        args.add(new PyString(options.getOptionValue('P')))
       }
       if (options.hasOption('F')) {
         args.add(new PyString("--fast-fail-regexps"))
@@ -282,7 +282,7 @@ object SauceConnect {
 
   def startProxy() {
     try {
-      val proxy = new SauceProxy()
+      val proxy = new SauceProxy(0, "", 0)
       proxy.start()
       SauceConnect.interpreter.exec("options.ports = ['" + proxy.getPort + "']")
     } catch {

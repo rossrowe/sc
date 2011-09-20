@@ -21,26 +21,22 @@ import org.eclipse.jetty.server.handler.ConnectHandler
 import org.eclipse.jetty.server.nio.SelectChannelConnector
 import org.eclipse.jetty.util.thread.QueuedThreadPool
 
-class SauceProxy {
+class SauceProxy(port: Int, val targetHost: String, val targetPort: Int) {
   val server = new Server()
 
   val connector = new SelectChannelConnector()
   // val connector = new SocketConnector()
-  connector.setPort(0)
+  connector.setPort(port)
   connector.setMaxIdleTime(20000)
   connector.setThreadPool(new QueuedThreadPool(256))
 
   server.addConnector(connector)
 
-  val handler = new ProxyHandler(true)
+  val handler = new ProxyHandler(this, true)
   server.setHandler(handler)
 
   // Returns the local port of the first connector for the server.
   def getPort() = this.server.getConnectors()(0).getLocalPort()
 
   def start() = this.server.start()
-
-  def main(args:Array[String]) = {
-    new SauceProxy().start()
-  }
 }
