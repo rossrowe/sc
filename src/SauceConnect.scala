@@ -44,13 +44,13 @@ import io.Source
 object SauceConnect {
   var _interpreter:PythonInterpreter = null
 
-  val BUILD = 17
+  val BUILD = 18
   val RELEASE = 16
   var commandLineArguments:CommandLine = null
   var liteMode:Boolean = false
   var standaloneMode:Boolean = true
   var restURL = ""
-  var sePort = 0
+  var sePort = ""
   var username = ""
   var apikey = ""
   var strippedArgs = new PyList()
@@ -123,8 +123,10 @@ object SauceConnect {
       if (result.getArgs.length == 1) {
         throw new ParseException("Missing required argument API_KEY")
       }
+
       commandLineArguments = result
-      sePort = commandLineArguments.getOptionValue("se-port", "4445").toInt
+
+      sePort = commandLineArguments.getOptionValue("se-port", "4445")
       restURL = commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest/v1")
       username = commandLineArguments.getArgs()(0)
       apikey = commandLineArguments.getArgs()(1)
@@ -186,7 +188,7 @@ object SauceConnect {
     args.add(new PyString("--rest-url"))
     args.add(new PyString(restURL))
     args.add(new PyString("--se-port"))
-    args.add(new PyString(sePort.toString))
+    args.add(new PyString(sePort))
     if (options != null) {
       if (options.hasOption('f')) {
         args.add(new PyString("--readyfile"))

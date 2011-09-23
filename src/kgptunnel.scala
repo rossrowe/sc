@@ -34,23 +34,25 @@ class KgpTunnel {
 
   /* kwargs to constructor called from Python cause fields to be set */
   var host = ""
-  var tunnel:PyObject = null
-  var ports:Array[String] = null
-  var tunnel_ports:Array[String] = null
+  var tunnel: PyObject = null
+  var ports: Array[String] = null
+  var tunnel_ports: Array[String] = null
   var use_ssh_config = false
   var debug = false
   var ssh_port = 0
-  var se_port = 0
+  var se_port = ""
 
-  private var client:KgpClient = null
-  private var readyfile:File = null
+  private var client: KgpClient = null
+  private var readyfile: File = null
+
+  var proxyServer: ProxyServer = null
 
   private def getTunnelSetting(name:String) : String = {
     return this.tunnel.__getattr__(name).asString()
   }
 
   def checkProxy(): Boolean = {
-    val proxyURL = new URL("http://localhost:%d/" format (se_port))
+    val proxyURL = new URL("http://localhost:%s/" format (proxyServer.getPort))
     val data = Source.fromInputStream(proxyURL.openStream()).mkString("")
     return (data == "OK,ondemand alive")
   }
@@ -121,21 +123,27 @@ class KgpTunnel {
                            "{\"username\": \"" + user + "\", \"access_key\": \"" + password + "\"}")
     client.start()
     client.connect()
-    val proxyServer = new ProxyServer(client, 0)
-    proxyServer.serve()
 
-    try {
-      val proxy = new SauceProxy(se_port, "localhost", proxyServer.getPort)
-      proxy.start()
-    } catch {
-      case e:Exception => {
-        System.err.println("Error starting proxy: " + e.getMessage)
+    proxyServer = new ProxyServer(client, 0)
+    proxyServer.serve()
+    log.info("Forwarding Selenium with ephemeral port " + proxyServer.getPort)
+
+    if (se_port == "off") {
+      log.info("Selenium HTTP proxy disabled")
+    } else {
+
+      try {
+        val proxy = new SauceProxy(se_port.toInt, "localhost",
+                                   proxyServer.getPort)
+        proxy.start()
+      } catch {
+        case e:Exception => {
+          System.err.println("Error starting proxy: " + e.getMessage)
+        }
       }
+      log.info("Selenium HTTP proxy listening on port " + se_port)
     }
 
-
-    log.info("Forwarding Selenium with ephemeral port " + proxyServer.getPort)
-    log.info("Selenium HTTP proxy listening on port " + se_port)
     //client.authenticateWithPassword(user, password)
     for (index <- 0 until ports.length) {
       val remotePort = tunnel_ports(index).toInt

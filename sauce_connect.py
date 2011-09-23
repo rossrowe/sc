@@ -748,7 +748,7 @@ Performance tip:
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--ssh", default=False, action="store_true",
                   help=optparse.SUPPRESS_HELP)
-    og.add_option("--se-port", default=4445, type="int",
+    og.add_option("--se-port", default="4445", type="str",
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--fast-fail-regexps", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
