@@ -44,8 +44,8 @@ import io.Source
 object SauceConnect {
   var _interpreter:PythonInterpreter = null
 
-  val BUILD = 18
-  val RELEASE = 16
+  val BUILD = 19
+  val RELEASE = 17
   var commandLineArguments:CommandLine = null
   var liteMode:Boolean = false
   var standaloneMode:Boolean = true
