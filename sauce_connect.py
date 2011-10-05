@@ -55,7 +55,7 @@ NAME = "sauce_connect"
 RELEASE = 26
 DISPLAY_VERSION = "%s release %s" % (NAME, RELEASE)
 PRODUCT_NAME = u"Sauce Connect"
-VERSIONS_URL = "http://saucelabs.com/versions.json"
+VERSIONS_URL = "https://saucelabs.com/versions.json"
 
 RETRY_PROVISION_MAX = 4
 RETRY_BOOT_MAX = 4
@@ -961,6 +961,7 @@ def run(options, dependency_versions=None,
     except (ReverseSSHError, TunnelMachineError), e:
         logger.error(e)
     except InterruptedException, e:
+        logger.info("Exiting due to interrupt")
         return
     peace_out(tunnel)  # exits
 

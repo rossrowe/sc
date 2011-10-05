@@ -52,9 +52,13 @@ class KgpTunnel {
   }
 
   def checkProxy(): Boolean = {
-    val proxyURL = new URL("http://localhost:%s/" format (proxyServer.getPort))
-    val data = Source.fromInputStream(proxyURL.openStream()).mkString("")
-    return (data == "OK,ondemand alive")
+    try {
+      val proxyURL = new URL("http://localhost:%s/" format (proxyServer.getPort))
+      val data = Source.fromInputStream(proxyURL.openStream()).mkString("")
+      return (data == "OK,ondemand alive")
+    } catch {
+      case e:IOException => return false
+    }
   }
 
   def reportConnectedStatus() = {
@@ -102,7 +106,11 @@ class KgpTunnel {
       val start = System.currentTimeMillis()
       forwarded_health.check()
       if (start - last_report > report_interval) {
-        if (checkProxy()) { reportConnectedStatus() }
+        if (checkProxy()) {
+          reportConnectedStatus()
+        } else {
+          log.warn("End-to-end connection check failed")
+        }
         last_report = start
       }
       if ((health_check_interval - (System.currentTimeMillis()-start)) > 0) {

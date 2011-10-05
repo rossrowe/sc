@@ -44,7 +44,7 @@ import io.Source
 object SauceConnect {
   var _interpreter:PythonInterpreter = null
 
-  val BUILD = 19
+  val BUILD = 21
   val RELEASE = 17
   var commandLineArguments:CommandLine = null
   var liteMode:Boolean = false
@@ -127,7 +127,7 @@ object SauceConnect {
       commandLineArguments = result
 
       sePort = commandLineArguments.getOptionValue("se-port", "4445")
-      restURL = commandLineArguments.getOptionValue("rest-url", "http://saucelabs.com/rest/v1")
+      restURL = commandLineArguments.getOptionValue("rest-url", "https://saucelabs.com/rest/v1")
       username = commandLineArguments.getArgs()(0)
       apikey = commandLineArguments.getArgs()(1)
     } catch {
@@ -420,11 +420,11 @@ object SauceConnect {
    *
    */
   def getDownloadURL(localRelease: Int): String = {
-    val versionsURL = new URL("http://saucelabs.com/versions.json")
+    val versionsURL = new URL("https://saucelabs.com/versions.json")
     val data = Source.fromInputStream(versionsURL.openStream()).mkString("")
     val versions = JSON.parseFull(data).get.asInstanceOf[Map[String, Any]]
     if (!versions.contains("Sauce Connect 2")) {
-      return "http://saucelabs.com/downloads/Sauce-Connect-2-latest.zip"
+      return "https://saucelabs.com/downloads/Sauce-Connect-2-latest.zip"
     }
     val versionDetails = versions.get("Sauce Connect 2").get.asInstanceOf[Map[String, Any]]
     val remoteVersion = versionDetails.get("version").get.asInstanceOf[String]
