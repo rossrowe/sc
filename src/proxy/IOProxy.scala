@@ -19,11 +19,13 @@ package com.saucelabs.sauceconnect.proxy
 
 
 import java.io._
+import org.eclipse.jetty.io.EofException
+import org.apache.commons.logging.{Log, LogFactory}
 
 import scala.util.control.Breaks._
 
-
 object IOProxy {
+  protected val log = LogFactory.getLog(this.getClass)
 
   val BUFFER_SIZE = 8192
 
@@ -53,7 +55,14 @@ object IOProxy {
         val len = in.read(buffer, 0, read_size)
         if (len == -1) break
 
-        out.write(buffer, 0, len)
+        try {
+          out.write(buffer, 0, len)
+        } catch {
+          case e:Exception => {
+            log.warn("Exception writing " + len + " bytes in IOProxy, c=" + c + ", count=" + count + ", read_size=" + read_size + ", numCopied=" + numCopied + ", exception: " + e)
+            throw e
+          }
+        }
         numCopied += len
         if (c > 0) { c -= len }
       }
@@ -80,7 +89,14 @@ object IOProxy {
         val len = in.read(buffer, 0, read_size)
         if (len == -1) break
 
-        out.write(buffer, 0, len)
+        try {
+          out.write(buffer, 0, len)
+        } catch {
+          case e:Exception => {
+            log.warn("Exception writing " + len + " bytes in IOProxy, c=" + c + ", count=" + count + ", read_size=" + read_size + ", numCopied=" + numCopied + ", exception: " + e)
+            throw e
+          }
+        }
         numCopied += len
         if (c > 0) { c -= len }
       }
