@@ -305,6 +305,8 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       if (trustAllSSLCertificates && connection.isInstanceOf[HttpsURLConnection]) {
         TrustEverythingSSLTrustManager.trustAllSSLCertificates(connection.asInstanceOf[HttpsURLConnection])
       }
+    } else {
+      log.error("connection is not a HttpURLConnection! " + connection + ", " + connection.getClass)
     }
 
     // check connection header

@@ -28,6 +28,10 @@ Copyright (c) 2001-2008 Python Software Foundation. All rights reserved.
 Jyson
 Copyright 2009 Alan Kennedy
 
+Netty
+Copyright 2009 Red Hat, Inc.
+http://www.jboss.org/netty/
+
 Selenium (parts adapted)
 Copyright 1991-2005 Mort Bay Consulting Pty. Ltd.
 Copyright 2006 ThoughtWorks, Inc.

@@ -141,10 +141,12 @@ class KgpConn(val id: Long, client: KgpClient) {
     log.warn("close not handled")
   }
 
-  def remoteShutdown() {
-    log.debug("got remote shutdown for conn " + id)
+  def remoteShutdown(read_only: Boolean) {
+    log.debug("got remote shutdown for conn " + id + " " + read_only)
     isRemoteShutdown = true
-    localShutdown()
+    if (!read_only) {
+      localShutdown()
+    }
   }
 
   def localShutdown() {
@@ -378,6 +380,7 @@ class ProxyClientConn(id: Long,
   })
 
   override def dataReceived(msg: ChannelBuffer) {
+    log.debug("got a message from proxied kgp client: " + msg.toString(UTF_8))
     if (tcpConnected) {
       tcpChannel.write(msg)
     } else {
@@ -385,10 +388,27 @@ class ProxyClientConn(id: Long,
     }
   }
 
+  override def remoteShutdown(read_only: Boolean) {
+    if (read_only) {
+      log.info("got a remote half-close from kgp client of proxied tcp server")
+    } else {
+      log.debug("got a remote close from kgp client of proxied tcp server")
+    }
+
+    // FIXME: If read_only, we should half-close the tcp channel to
+    // signal the server the same way the real client was trying to.
+    // Unfortunately, netty doesn't implement half-closes!
+
+    // I wish Java would let me do this
+    //tcpChannel.asInstanceOf[NioSocketChannel].socket.shutdownInput()
+
+    super.remoteShutdown(read_only)
+  }
 
   override def localShutdown {
+    log.debug("doing a local shutdown")
     if (tcpConnected) {
-      log.debug("kgp-tunneled connection closed, closing proxied tcp connection")
+      log.debug("kgp-tunneled connection closed, closing connection to proxied tcp server")
       tcpChannel.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
       // channelClosed will shut us down when it's done
     } else {
@@ -401,14 +421,13 @@ class ProxyClientConn(id: Long,
     override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
       val msg = e.getMessage.asInstanceOf[ChannelBuffer]
       //System.out.log.info("<<< " + ChannelBuffers.hexDump(msg))
-      if (tcpConnected) {
-        client.send(id, msg)
-      }
+      //log.info("got a message from proxied tcp server: " + msg.toString(UTF_8))
+      client.send(id, msg)
     }
 
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
       if (tcpConnected) {
-        log.debug("proxied tcp connection closed, closing kgp-tunneled connection")
+        log.debug("tcp connection to proxied server closed, closing kgp-tunneled connection")
         tcpConnected = false
         localShutdown()
       }
@@ -443,16 +462,20 @@ class ProxyServerConn(id: Long,
   }
 
 
-  override def remoteShutdown() {
+  override def remoteShutdown(read_only: Boolean) {
     if (tcpConnected) {
       log.debug("got remote shutdown for conn " + id)
       isRemoteShutdown = true
 
-      log.debug("kgp-tunneled connection closed, closing proxied tcp connection")
+      if (read_only) {
+        log.info("proxy kgp-tunneled connection half-closed, closing tcp server connection")
+      } else {
+        log.debug("proxy kgp-tunneled connection closed, closing tcp server connection")
+      }
       tcpChannel.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE)
       // channelClosed will shut us down when it's done
     } else {
-      super.remoteShutdown()
+      super.remoteShutdown(read_only)
     }
   }
 }
@@ -506,16 +529,15 @@ class ProxyTcpHandler(client: KgpClient) extends SimpleChannelUpstreamHandler {
     }
     outBuffer.clear()
     if (kgpConn.tcpConnected) {
-      log.debug("proxied tcp connection closed, closing kgp-tunneled connection")
+      log.debug("tcp server connection closed, closing proxy kgp-tunneled connection")
       kgpConn.tcpConnected = false
       kgpConn.localShutdown()
     }
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
-    kgpConn.tcpConnected = false // maybe?
     e.getCause match {
-      case c:ClosedChannelException => {}
+      case c:ClosedChannelException => log.info("got channel closed exception for tcp server connection being proxied through kgp")
       case c:Exception => e.getCause.printStackTrace
     }
   }
@@ -917,7 +939,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
             case 1 => {
               if (kgpChannel.conns contains connId) {
                 val conn = kgpChannel.conns(connId)
-                conn.remoteShutdown()
+                conn.remoteShutdown(msg == wrappedBuffer(Array[Byte]('r')))
               }
             }
           }
