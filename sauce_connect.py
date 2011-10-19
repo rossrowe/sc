@@ -278,7 +278,7 @@ class TunnelMachine(object):
                 logger.info("Tunnel host is %s .." % status)
             previous_status = status
             time.sleep(REST_POLL_WAIT)
-        logger.info("Tunnel host is shutdown")
+        logger.info("Tunnel host is shut down")
         self.is_shutdown = True
 
     # Make us usable with contextlib.closing
