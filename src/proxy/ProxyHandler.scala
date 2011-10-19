@@ -80,7 +80,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
   override def handle(target: String, baseRequest: Request, request: javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
     if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod)) {
       val host = request.getRequestURL.toString
-      log.debug("CONNECT request for " + host)
+      log.info("CONNECT request for " + host)
       handleConnect(baseRequest, request, response, host)
       return
     }
@@ -451,8 +451,21 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
     // Handled
     var bytesCopied: Long = -1
     request.setHandled(true)
+
+    if (response.isCommitted()) {
+      log.error("ERROR, response committed before proxied response body read for " + url)
+    }
+
     if (proxy_in != null) {
-      bytesCopied = IOProxy.proxy(proxy_in, response.getOutputStream())
+      try {
+        bytesCopied = IOProxy.proxy(proxy_in, response.getOutputStream())
+      } catch {
+        case e:Exception => {
+          val duration = System.currentTimeMillis - startMs
+          log.warn("Exception proxying response after " + duration + "ms, committed? " + response.isCommitted())
+          throw e
+        }
+      }
     }
     val duration = System.currentTimeMillis - startMs
     log.info(request.getMethod + " " + url + " -> " + code + " (" + duration + "ms)")

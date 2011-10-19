@@ -216,7 +216,8 @@ class TunnelMachine(object):
                                ssh_port=self.ssh_port,
                                use_caching_proxy=self.boost_mode,
                                use_kgp=not self.use_ssh,
-                               fast_fail_regexps=self.fast_fail_regexps.split(',')))
+                               fast_fail_regexps=self.fast_fail_regexps.split(','),
+                               squid_config=["server_persistent_connections off"]))
         logger.info("%s" % data)
         req = urllib2.Request(url=self.base_url, headers=headers, data=data)
         doc = self._get_doc(req)
