@@ -36,6 +36,35 @@ import java.util.ArrayList
 import collection.mutable
 import io.Source
 
+object Json {
+  def encode(m: Map[String, Any]): String = {
+    "{" +
+    m.fold("") {
+      case (acc: String, (k: String, v: String)) => {
+        acc +
+        (if (acc.length > 0) ", " else "") +
+        "\"" + k.replace("\"", "\\\"") + "\": " +
+        "\"" + v.replace("\"", "\\\"") + "\""
+      }
+      case (acc: String, (k: String, v: Map[String, Any])) => {
+        acc +
+        (if (acc.length > 0) ", " else "") +
+        "\"" + k.replace("\"", "\\\"") + "\": " + encode(v)
+      }
+      case (acc: String, (k: String, v: Any)) => {
+        acc +
+        (if (acc.length > 0) ", " else "") +
+        "\"" + k + "\"" + ": " + v
+      }
+    } +
+    "}"
+  }
+
+  def decode(s: String): Map[String, Any] = {
+    return JSON.parseFull(s).get.asInstanceOf[Map[String, Any]]
+  }
+}
+
 /**
  * Third party libraries wishing to invoke the SauceConnect library should first invoke {@link #openConnection()},
  * which will create the SSH Tunnel.  The tunnel can be closed by first invoking the {@link #removeHandler()} and then
@@ -54,6 +83,7 @@ object SauceConnect {
   var username = ""
   var apikey = ""
   var strippedArgs = new PyList()
+  var tunnel:Tunnel = null
 
   def main(args: Array[String]) {
     storeCommandLineArgs(args)
@@ -101,6 +131,9 @@ object SauceConnect {
     val fastFail = new Option("F", "fast-fail-regexps", true, null)
     fastFail.setArgName("REGEXPS")
     options.addOption(fastFail)
+    val squidOpts = new Option("S", "squid-opts", true, null)
+    fastFail.setArgName("OPTIONS")
+    options.addOption(squidOpts)
     try {
       val parser = new PosixParser()
       val result = parser.parse(options, args)
@@ -201,8 +234,15 @@ object SauceConnect {
         args.add(new PyString("--fast-fail-regexps"))
         args.add(new PyString(options.getOptionValue('F')))
       }
+      args.add(new PyString("--squid-opts"))
+      if (options.hasOption('S')) {
+        args.add(new PyString("server_persistent_connections off," + options.getOptionValue('S')))
+      } else {
+        args.add(new PyString("server_persistent_connections off"))
+      }
     }
 
+    println(args)
     return new PyList(args)
   }
 
@@ -274,7 +314,7 @@ object SauceConnect {
       }
       if (!commandLineArguments.hasOption("dont-update-proxy-host")) {
         val port = 33128
-        updateDefaultProxyHost(domain, port)
+        //updateDefaultProxyHost(domain, port)
       }
       SauceConnect.interpreter.set(
         "arglist",
@@ -340,34 +380,18 @@ object SauceConnect {
       val connection = restEndpoint.openConnection()
       connection.setRequestProperty("Authorization", auth)
       val data = Source.fromInputStream(connection.getInputStream).mkString("")
-      val currentDefaults = mutable.Map(JSON.parseFull(data).get.asInstanceOf[Map[String, Any]].toSeq: _*)
+      val currentDefaults = mutable.Map(Json.decode(data).toSeq: _*)
       if (proxyHost != null) {
         currentDefaults("proxy-host") = proxyHost + ":" + proxyPort
       } else {
         currentDefaults.remove("proxy-host")
       }
 
-      def toJson(m: Map[String, Any]): String = {
-        m.fold("{") {
-          case (acc: String, (k: String, v: String)) => {
-            (acc +
-             '"' + k.replace("\"", "\\\"") + '"' + ": " +
-             '"' + v.replace("\"", "\\\"") + '"')
-          }
-          case (acc: String, (k: String, v: Map[String, Any])) => {
-            acc + '"' + k.replace("\"", "\\\"") + '"' + ": " + toJson(v)
-          }
-          case (acc: String, (k: String, v: Any)) => {
-            acc + '"' + k + '"' + ": " + v
-          }
-        } + "}"
-      }
-
       val postBack = restEndpoint.openConnection.asInstanceOf[HttpURLConnection]
       postBack.setDoOutput(true)
       postBack.setRequestMethod("PUT")
       postBack.setRequestProperty("Authorization", auth)
-      val newDefaults = toJson(currentDefaults.toMap)
+      val newDefaults = Json.encode(currentDefaults.toMap)
       postBack.getOutputStream.write(newDefaults.getBytes)
       postBack.getInputStream.close()
     } catch {
@@ -422,7 +446,7 @@ object SauceConnect {
   def getDownloadURL(localRelease: Int): String = {
     val versionsURL = new URL("https://saucelabs.com/versions.json")
     val data = Source.fromInputStream(versionsURL.openStream()).mkString("")
-    val versions = JSON.parseFull(data).get.asInstanceOf[Map[String, Any]]
+    val versions = Json.decode(data)
     if (!versions.contains("Sauce Connect 2")) {
       return "https://saucelabs.com/downloads/Sauce-Connect-2-latest.zip"
     }
@@ -439,4 +463,16 @@ object SauceConnect {
   def setStandaloneMode(standaloneMode: Boolean) {
     this.standaloneMode = standaloneMode
   }
+
+  def reportError(info: String): Boolean = {
+    if (tunnel == null) {
+      return false
+    }
+    return tunnel.reportError(info)
+  }
+}
+
+
+abstract class Tunnel {
+    def reportError(info: String): Boolean
 }

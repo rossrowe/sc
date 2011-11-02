@@ -1,5 +1,7 @@
 package com.saucelabs.sauceconnect.proxy
 
+import com.saucelabs.sauceconnect._
+
 import cybervillains.ca.KeyStoreManager
 import org.eclipse.jetty.http._
 import org.eclipse.jetty.io.{Buffer, Connection, EndPoint}
@@ -116,6 +118,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
         if (!response.isCommitted()) {
           response.sendError(400, "Could not proxy " + url + "\n" + e)
         }
+        SauceConnect.reportError("Could not proxy " + url + ", exception: " + e)
       }
     }
   }
@@ -463,6 +466,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
         case e:Exception => {
           val duration = System.currentTimeMillis - startMs
           log.warn("Exception proxying response after " + duration + "ms, committed? " + response.isCommitted())
+          SauceConnect.reportError("Exception proxying response after " + duration + "ms, committed? " + response.isCommitted() + " exception: " + e)
           throw e
         }
       }

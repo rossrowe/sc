@@ -24,7 +24,7 @@ import org.python.core._
 
 import ch.ethz.ssh2.{Connection, Session}
 
-class ReverseSSH {
+class ReverseSSH extends Tunnel {
   println("instantiating ReverseSSH")
   private val MAX_RECONNECT_ATTEMPTS = 3
   private val log = LogFactory.getLog(this.getClass)
@@ -41,6 +41,8 @@ class ReverseSSH {
 
   private var tunnelConnection: Connection = null
   private var readyfile: File = null
+
+  SauceConnect.tunnel = this
 
   private def getTunnelSetting(name:String): String = {
     return this.tunnel.__getattr__(name).asString
@@ -124,4 +126,6 @@ class ReverseSSH {
     }
     tunnelConnection.close()
   }
+
+  def reportError(info: String): Boolean = false
 }

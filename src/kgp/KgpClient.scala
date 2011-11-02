@@ -970,7 +970,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
     e.getMessage match {
       case (ver: (Int, Int, Int), id: Array[Byte], metadata: Option[Any]) => {
         log.info("Tunnel host version: " + ver.productIterator.mkString(".") +
-                 ", ID: " + ChannelBuffers.hexDump(wrappedBuffer(id)))
+                 ", remote endpoint ID: " + ChannelBuffers.hexDump(wrappedBuffer(id)))
         kgpChannel.setRemoteEndpoint(id)
         announced = true
         client.handleAnnounced()

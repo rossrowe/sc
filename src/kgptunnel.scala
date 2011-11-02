@@ -28,7 +28,7 @@ import org.python.core._
 import com.saucelabs.sauceconnect.proxy.SauceProxy
 import com.saucelabs.kgp.{KgpClient, ProxyServer}
 
-class KgpTunnel {
+class KgpTunnel extends Tunnel {
   private val MAX_RECONNECT_ATTEMPTS = 3
   private val log = LogFactory.getLog(this.getClass)
 
@@ -47,6 +47,8 @@ class KgpTunnel {
 
   var proxyServer: ProxyServer = null
 
+  SauceConnect.tunnel = this
+
   private def getTunnelSetting(name:String) : String = {
     return this.tunnel.__getattr__(name).asString()
   }
@@ -61,20 +63,41 @@ class KgpTunnel {
     }
   }
 
+  def restCall(method: String, path: String,
+               data: Map[String, Any]): Map[String, Any] = {
+    val restURL = new URL("%s/%s%s" format
+                          (SauceConnect.restURL,
+                           SauceConnect.username,
+                           path))
+    var auth = SauceConnect.username + ":" + SauceConnect.apikey
+    auth = "Basic " + new String(Base64.encode(auth.getBytes))
+    val conn = restURL.openConnection.asInstanceOf[HttpURLConnection]
+    conn.setDoOutput(true)
+    conn.setRequestMethod(method)
+    conn.setRequestProperty("Authorization", auth)
+    conn.setRequestProperty("Content-Type", "application/json")
+    if (data != null) {
+      val body = Json.encode(data)
+      val os = conn.getOutputStream
+      os.write(body.getBytes("utf-8"))
+      os.flush()
+      os.close()
+    }
+    val code = conn.getResponseCode
+    val stream = if (200 <= code && code < 300) {
+      conn.getInputStream
+    } else {
+      conn.getErrorStream
+    }
+    val result = Source.fromInputStream(stream).mkString("")
+    stream.close()
+    return Json.decode(result)
+  }
+
   def reportConnectedStatus() = {
     try {
-      val reportURL = new URL("%s/%s/tunnels/%s/connected" format
-                              (SauceConnect.restURL,
-                               SauceConnect.username,
-                               getTunnelSetting("id")))
-      var auth = SauceConnect.username + ":" + SauceConnect.apikey
-      auth = "Basic " + new String(Base64.encode(auth.getBytes))
-      val conn = reportURL.openConnection.asInstanceOf[HttpURLConnection]
-      conn.setDoOutput(true)
-      conn.setRequestMethod("POST")
-      conn.setRequestProperty("Authorization", auth)
-      val data = Source.fromInputStream(conn.getInputStream).mkString("")
-      conn.getInputStream.close()
+      val path = "/tunnels/%s/connected" format (getTunnelSetting("id"))
+      restCall("POST", path, null)
     } catch {
       case e:IOException => {
         System.err.println("Error connecting to Sauce OnDemand REST API: ")
@@ -83,6 +106,20 @@ class KgpTunnel {
     }
   }
 
+  def reportError(info: String): Boolean = {
+    try {
+      val data = restCall("POST", "/errors",
+                          Map("Tunnel" -> getTunnelSetting("id"),
+                              "Info" -> info))
+      return (data contains "result") && (data("result") == true)
+    } catch {
+      case e:IOException => {
+        System.err.println("Error reporting to Sauce OnDemand REST API: ")
+        e.printStackTrace()
+      }
+    }
+    return false
+  }
 
   def run(readyfile:String) = {
     if (readyfile != null) {
