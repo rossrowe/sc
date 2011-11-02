@@ -390,6 +390,7 @@ class ProxyClientConn(id: Long,
 
   tcpChannel = f.getChannel
   tcpChannel.setHandleHalfClose(true)
+  //tcpChannel.setOption("keepAlive", true)
   f.addListener(() => {
     if (f.isSuccess) {
       tcpConnected = true
@@ -451,6 +452,7 @@ class ProxyClientConn(id: Long,
   }
 
   private class TcpHandler() extends SimpleChannelUpstreamHandler {
+    val startMs = System.currentTimeMillis
 
     override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
       val msg = e.getMessage.asInstanceOf[ChannelBuffer]
@@ -464,20 +466,30 @@ class ProxyClientConn(id: Long,
     }
 
     override def channelClosed(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
+      val duration = System.currentTimeMillis - startMs
       val closeType = e.getValue
       if (tcpConnected) {
         tcpConnected = false
         if (closeType == "write only") {
           if (isRemoteShutdown) {
+            if (duration > 10000) {
+              log.warn(id + " tcp connection to proxied server half-closed while remote kgp conn closed, closing tcp conn and kgp-tunneled conn after " + duration + "ms")
+            }
             log.debug(id + " tcp connection to proxied server half-closed while remote kgp conn closed, closing tcp conn and kgp-tunneled conn")
             desiredConnectionState = "closed"
             flush()
             localShutdown(false)
           } else {
+            if (duration > 10000) {
+              log.warn(id + " tcp connection to proxied server half-closed, half-closing kgp-tunneled conn after " + duration + "ms")
+            }
             log.debug(id + " tcp connection to proxied server half-closed, half-closing kgp-tunneled conn")
             localShutdown(true)
           }
         } else {
+          if (duration > 10000) {
+            log.warn(id + " tcp connection to proxied server closed, closing kgp-tunneled conn after " + duration + "ms")
+          }
           log.debug(id + " tcp connection to proxied server closed, closing kgp-tunneled conn")
           localShutdown(false)
         }
@@ -485,7 +497,7 @@ class ProxyClientConn(id: Long,
     }
 
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
-      e.getCause.printStackTrace
+      e.getCause.printStackTrace()
     }
   }
 
@@ -612,7 +624,7 @@ class ProxyTcpHandler(client: KgpClient) extends SimpleChannelUpstreamHandler {
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) {
     e.getCause match {
       case c:ClosedChannelException => log.debug("got channel closed exception for tcp server connection being proxied through kgp")
-      case c:Exception => e.getCause.printStackTrace
+      case c:Exception => e.getCause.printStackTrace()
     }
   }
 }
@@ -1054,7 +1066,7 @@ class KgpClientHandler(val client: KgpClient, mkconn: (Long, Channel) => KgpConn
         log.warn("IOException: " + e)
       }
       case e => {
-        e.printStackTrace
+        e.printStackTrace()
         log.warn("Unexpected exception from downstream: " + e)
       }
     }
