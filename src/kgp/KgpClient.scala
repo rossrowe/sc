@@ -381,7 +381,7 @@ class ProxyClientConn(id: Long,
 
   val remoteHost = "localhost"
 
-  log.warn(id + " connecting to proxied tcp server " + remoteHost + ":" + remotePort)
+  log.debug(id + " connecting to proxied tcp server " + remoteHost + ":" + remotePort)
 
   // Start the connection attempt.
   val cb = new ClientBootstrap(cf)
@@ -390,6 +390,7 @@ class ProxyClientConn(id: Long,
 
   tcpChannel = f.getChannel
   tcpChannel.setHandleHalfClose(true)
+  tcpChannel.getConfig.setOption("keepAlive", true)
   f.addListener(() => {
     if (f.isSuccess) {
       tcpConnected = true
@@ -407,12 +408,12 @@ class ProxyClientConn(id: Long,
     outBuffer.clear()
     if (desiredConnectionState == "closed") {
       tcpChannel.write(ChannelBuffers.EMPTY_BUFFER).addListener(() => {
-        log.warn(id + " actually closing tcp connection")
+        log.debug(id + " actually closing tcp connection")
         tcpChannel.close()
       })
     } else if (desiredConnectionState == "half") {
       tcpChannel.write(ChannelBuffers.EMPTY_BUFFER).addListener(() => {
-        log.warn(id + " actually half-closing tcp connection")
+        log.debug(id + " actually half-closing tcp connection")
         tcpChannel.shutdownOutput()
       })
     }
@@ -437,10 +438,10 @@ class ProxyClientConn(id: Long,
 
   override def remoteShutdown(half: Boolean) {
     if (half && !isLocalShutdown) {
-      log.warn(id + " got a remote half-close from kgp client of proxied tcp server")
+      log.debug(id + " got a remote half-close from kgp client of proxied tcp server")
       desiredConnectionState = "half"
     } else {
-      log.warn(id + " got a remote close from kgp client of proxied tcp server")
+      log.debug(id + " got a remote close from kgp client of proxied tcp server")
       desiredConnectionState = "closed"
     }
 
