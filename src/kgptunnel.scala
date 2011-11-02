@@ -108,6 +108,7 @@ class KgpTunnel extends Tunnel {
 
   def reportError(info: String): Boolean = {
     try {
+      println("REPORTING an error to Sauce Labs with info: " + info)
       val data = restCall("POST", "/errors",
                           Map("Tunnel" -> getTunnelSetting("id"),
                               "Info" -> info))
