@@ -238,7 +238,7 @@ object SauceConnect {
       if (options.hasOption('S')) {
         args.add(new PyString("server_persistent_connections off," + options.getOptionValue('S')))
       } else {
-        args.add(new PyString("server_persistent_connections off, retry_on_error on"))
+        args.add(new PyString("server_persistent_connections off,retry_on_error on"))
       }
     }
 
