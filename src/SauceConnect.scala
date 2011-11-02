@@ -73,7 +73,7 @@ object Json {
 object SauceConnect {
   var _interpreter:PythonInterpreter = null
 
-  val BUILD = 23
+  val BUILD = 24
   val RELEASE = 17
   var commandLineArguments:CommandLine = null
   var liteMode:Boolean = false
