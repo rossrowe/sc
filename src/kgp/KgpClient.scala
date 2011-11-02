@@ -390,7 +390,6 @@ class ProxyClientConn(id: Long,
 
   tcpChannel = f.getChannel
   tcpChannel.setHandleHalfClose(true)
-  tcpChannel.getConfig.setOption("keepAlive", true)
   f.addListener(() => {
     if (f.isSuccess) {
       tcpConnected = true

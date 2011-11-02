@@ -29,6 +29,9 @@ class SauceProxy(port: Int, val targetHost: String, val targetPort: Int) {
   connector.setPort(port)
   connector.setMaxIdleTime(200000)
   connector.setThreadPool(new QueuedThreadPool(256))
+  println("MaxIdleTime: " + connector.getMaxIdleTime)
+  println("LowResourceConnections: " + connector.getLowResourcesConnections)
+  println("LowResourcesMaxIdleTime: " + connector.getLowResourcesMaxIdleTime)
 
   server.addConnector(connector)
 
