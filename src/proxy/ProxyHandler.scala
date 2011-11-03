@@ -299,7 +299,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       }
     }
 
-    if (url contains "squid-cache.org") {
+    if (url.toString.contains("squid-cache.org")) {
       SauceConnect.reportError("Proxying suspicious request for " + url + "\n" +
                                stats)
     }
