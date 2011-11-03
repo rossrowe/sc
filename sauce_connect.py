@@ -134,7 +134,7 @@ class TunnelMachine(object):
                 logger.warning(e)
                 if attempt == RETRY_PROVISION_MAX:
                     raise TunnelMachineError(
-                        "!! Could not provision tunnel host. Please contact "
+                        "!! Could not provision tunnel remote VM. Please contact "
                         "help@saucelabs.com.")
 
     def _set_urlopen(self, user, password):
@@ -191,21 +191,21 @@ class TunnelMachine(object):
                 kill_list.add(doc['id'])
         if kill_list:
             logger.info(
-                "Shutting down other tunnel hosts using requested domains")
+                "Shutting down other tunnel remote VMs using requested domains")
             for tunnel_id in kill_list:
                 for attempt in xrange(1, 4):  # try a few times, then bail
                     logger.debug(
-                        "Shutting down old tunnel host: %s" % tunnel_id)
+                        "Shutting down old tunnel remote VM: %s" % tunnel_id)
                     url = "%s/%s" % (self.base_url, tunnel_id)
                     doc = self._get_doc(DeleteRequest(url=url))
                     if (not doc.get('result') or
                         not doc.get('id') == tunnel_id):
-                        logger.warning("Old tunnel host failed to shut down.  Status: %s", doc)
+                        logger.warning("Old tunnel remote VM failed to shut down.  Status: %s", doc)
                         continue
                     doc = self._get_doc(url)
                     while doc.get('status') not in ["halting", "terminated"]:
                         logger.debug(
-                            "Waiting for old tunnel host to start halting")
+                            "Waiting for old tunnel remote VM to start halting")
                         time.sleep(REST_POLL_WAIT)
                         doc = self._get_doc(url)
                     break
@@ -242,7 +242,7 @@ class TunnelMachine(object):
             if status == "running":
                 break
             if status in ["halting", "terminated"]:
-                raise TunnelMachineBootError("Tunnel host was shutdown")
+                raise TunnelMachineBootError("tunnel remote VM was shutdown")
             if status != previous_status:
                 logger.info("Tunnel remote VM is %s .." % status)
             previous_status = status
@@ -257,13 +257,13 @@ class TunnelMachine(object):
         if self.reverse_ssh:
             self.reverse_ssh.stop()
 
-        logger.info("Shutting down tunnel host (please wait)")
-        logger.debug("Tunnel host ID: %s" % self.id)
+        logger.info("Shutting down tunnel remote VM (please wait)")
+        logger.debug("tunnel remote VM ID: %s" % self.id)
 
         try:
             doc = self._get_doc(DeleteRequest(url=self.url))
         except TunnelMachineError, e:
-            logger.warning("Unable to shut down tunnel host")
+            logger.warning("Unable to shut down tunnel remote VM")
             logger.debug("Shut down failed because: %s", str(e))
             self.is_shutdown = True  # fuhgeddaboudit
             return
@@ -459,7 +459,7 @@ class ReverseSSH(object):
         forwarded_health = HealthChecker(self.host, self.ports)
         tunnel_health = HealthChecker(host=self.tunnel.host, ports=[self.ssh_port],
             fail_msg="!! Your tests may fail because your network can not get "
-                     "to the tunnel host (%s:%d)." % (self.tunnel.host, self.ssh_port))
+                     "to the tunnel remote VM (%s:%d)." % (self.tunnel.host, self.ssh_port))
 
         start_time = int(time.time())
         while self.proc.poll() is None:
@@ -942,7 +942,7 @@ def run(options, dependency_versions=None,
             if attempt < RETRY_BOOT_MAX:
                 logger.info("Requesting new tunnel")
                 continue
-            logger.error("!! Could not get tunnel host")
+            logger.error("!! Could not get tunnel remote VM")
             logger.info("** Please contact help@saucelabs.com")
             peace_out(tunnel, returncode=1)  # exits
 
