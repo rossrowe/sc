@@ -390,14 +390,14 @@ class ProxyClientConn(id: Long,
   // Configure connection settings, basically
   class TimeoutPipelineFactory(timer: Timer) extends ChannelPipelineFactory {
     def getPipeline(): ChannelPipeline = {
-        return Channels.pipeline(new ReadTimeoutHandler(timer, 2))
+      Channels.pipeline(new ReadTimeoutHandler(timer, 2),
+                        new TcpHandler())
     }
   }
 
   // Start the connection attempt.
   val cb = new ClientBootstrap(cf)
   cb.setPipelineFactory(new TimeoutPipelineFactory(ConnTimer))
-  cb.getPipeline.addLast("handler", new TcpHandler())
   val f = cb.connect(new InetSocketAddress(remoteHost, remotePort))
 
   tcpChannel = f.getChannel
