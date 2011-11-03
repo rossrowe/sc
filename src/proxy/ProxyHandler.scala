@@ -267,6 +267,9 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
   protected def proxyPlainTextRequest(request: Request, response: javax.servlet.http.HttpServletResponse): Long = {
     val startMs = System.currentTimeMillis
 
+    val stats = "cur conns: " + sauceProxy.connector.getConnectionsOpen + ", max conns: " + sauceProxy.connector.getConnectionsOpenMax + ", max duration: " + sauceProxy.connector.getConnectionsDurationMax + ", max requests per conn: " + sauceProxy.connector.getConnectionsRequestsMax
+    //log.warn(sauceProxy + " " + stats)
+
     var url: URL = null
     if (!sauceProxy.targetHost.isEmpty && sauceProxy.targetPort > 0) {
       url = new URL("http", sauceProxy.targetHost, sauceProxy.targetPort,
@@ -294,6 +297,11 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
           log.info("using constructed absolute URL: " + url)
         }
       }
+    }
+
+    if (url contains "squid-cache.org") {
+      SauceConnect.reportError("Proxying suspicious request for " + url + "\n" +
+                               stats)
     }
 
     val connection = url.openConnection()
@@ -466,7 +474,11 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
         case e:Exception => {
           val duration = System.currentTimeMillis - startMs
           log.warn("Exception proxying response after " + duration + "ms, committed? " + response.isCommitted())
-          SauceConnect.reportError("Exception proxying response after " + duration + "ms, committed? " + response.isCommitted() + " exception: " + e)
+          SauceConnect.reportError("Exception proxying response for " + url + "\n" +
+                                   "after " + duration + "ms\n" +
+                                   "exception: " + e + "\n" +
+                                   "message: " + e.getLocalizedMessage)
+          log.warn("message for exception: " + e.getLocalizedMessage)
           throw e
         }
       }
