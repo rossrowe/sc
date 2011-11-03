@@ -477,7 +477,8 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
           SauceConnect.reportError("Exception proxying response for " + url + "\n" +
                                    "after " + duration + "ms\n" +
                                    "exception: " + e + "\n" +
-                                   "message: " + e.getLocalizedMessage)
+                                   "message: " + e.getLocalizedMessage + "\n" +
+                                   stats)
           log.warn("message for exception: " + e.getLocalizedMessage)
           throw e
         }
