@@ -227,11 +227,11 @@ class TunnelMachine(object):
         for key in ['id']:
             if not doc.get(key):
                 raise TunnelMachineProvisionError(
-                    "Document for provisioned tunnel host is missing the key "
+                    "Document for provisioned tunnel remote VM is missing the key "
                     "or value for '%s'" % key)
         self.id = doc['id']
         self.url = "%s/%s" % (self.base_url, self.id)
-        logger.info("Tunnel host is provisioned (%s)" % self.id)
+        logger.info("Tunnel remote VM is provisioned (%s)" % self.id)
 
     def ready_wait(self):
         """Wait for the machine to reach the 'running' state."""
@@ -244,11 +244,11 @@ class TunnelMachine(object):
             if status in ["halting", "terminated"]:
                 raise TunnelMachineBootError("Tunnel host was shutdown")
             if status != previous_status:
-                logger.info("Tunnel host is %s .." % status)
+                logger.info("Tunnel remote VM is %s .." % status)
             previous_status = status
             time.sleep(REST_POLL_WAIT)
         self.host = doc['host']
-        logger.info("Tunnel host is running at %s" % self.host)
+        logger.info("Tunnel remote VM is running at %s" % self.host)
 
     def shutdown(self):
         if self.is_shutdown:
@@ -277,10 +277,10 @@ class TunnelMachine(object):
             if status == "terminated":
                 break
             if status != previous_status:
-                logger.info("Tunnel host is %s .." % status)
+                logger.info("Tunnel remote VM is %s .." % status)
             previous_status = status
             time.sleep(REST_POLL_WAIT)
-        logger.info("Tunnel host is shut down")
+        logger.info("Tunnel remote VM is shut down")
         self.is_shutdown = True
 
     # Make us usable with contextlib.closing
@@ -291,7 +291,7 @@ class TunnelMachine(object):
         if doc.get('status') == "running":
             return
         raise TunnelMachineError(
-            "The tunnel host is no longer running. It may have been shutdown "
+            "The tunnel remote VM is no longer running. It may have been shutdown "
             "via the website or by another Sauce Connect script requesting these "
             "domains: %s" % list(self.domains))
 
