@@ -268,7 +268,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
     val startMs = System.currentTimeMillis
 
     val stats = "cur conns: " + sauceProxy.connector.getConnectionsOpen + ", max conns: " + sauceProxy.connector.getConnectionsOpenMax + ", max duration: " + sauceProxy.connector.getConnectionsDurationMax + ", max requests per conn: " + sauceProxy.connector.getConnectionsRequestsMax
-    log.warn(sauceProxy + " " + stats)
+    //log.warn(sauceProxy + " " + stats)
 
     var url: URL = null
     if (!sauceProxy.targetHost.isEmpty && sauceProxy.targetPort > 0) {
