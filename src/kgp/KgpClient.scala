@@ -34,7 +34,7 @@ import org.jboss.netty.channel.socket.nio.{NioClientSocketChannelFactory,
                                            NioServerSocketChannelFactory}
 import org.jboss.netty.util.HashedWheelTimer
 import org.jboss.netty.handler.ssl.SslHandler
-import org.jboss.netty.handler.timeout.WriteTimeoutHandler
+import org.jboss.netty.handler.timeout.ReadTimeoutHandler
 import javax.net.ssl.ManagerFactoryParameters
 import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactorySpi
@@ -390,7 +390,7 @@ class ProxyClientConn(id: Long,
   // Configure connection settings, basically
   class TimeoutPipelineFactory(timer: Timer) extends ChannelPipelineFactory {
     def getPipeline(): ChannelPipeline = {
-      Channels.pipeline(new WriteTimeoutHandler(timer, 2),
+      Channels.pipeline(new ReadTimeoutHandler(timer, 2),
                         new TcpHandler())
     }
   }
