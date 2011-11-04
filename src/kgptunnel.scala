@@ -108,11 +108,15 @@ class KgpTunnel extends Tunnel {
 
   def reportError(info: String): Boolean = {
     try {
-      println("REPORTING an error to Sauce Labs with info: " + info)
+      log.error("REPORTING an error to Sauce Labs with info: " + info)
       val data = restCall("POST", "/errors",
                           Map("Tunnel" -> getTunnelSetting("id"),
                               "Info" -> info))
-      return (data contains "result") && (data("result") == true)
+      val status = (data contains "result") && (data("result") == true)
+      if (!status) {
+        log.error("ERROR during reporting to Sauce Labs: " + data)
+      }
+      return status
     } catch {
       case e:IOException => {
         System.err.println("Error reporting to Sauce OnDemand REST API: ")

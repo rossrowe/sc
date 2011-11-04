@@ -37,24 +37,35 @@ import collection.mutable
 import io.Source
 
 object Json {
+  def quote(s: String): String = {
+    "\"" +
+    s
+    .replace("\\", "\\\\")
+    .replace("\b", "\\b")
+    .replace("\f", "\\f")
+    .replace("\n", "\\n")
+    .replace("\r", "\\r")
+    .replace("\t", "\\t") +
+    "\""
+  }
+
   def encode(m: Map[String, Any]): String = {
     "{" +
     m.fold("") {
       case (acc: String, (k: String, v: String)) => {
         acc +
         (if (acc.length > 0) ", " else "") +
-        "\"" + k.replace("\"", "\\\"") + "\": " +
-        "\"" + v.replace("\"", "\\\"") + "\""
+        quote(k) + ": " + quote(v)
       }
       case (acc: String, (k: String, v: Map[String, Any])) => {
         acc +
         (if (acc.length > 0) ", " else "") +
-        "\"" + k.replace("\"", "\\\"") + "\": " + encode(v)
+        quote(k) + ": " + encode(v)
       }
       case (acc: String, (k: String, v: Any)) => {
         acc +
         (if (acc.length > 0) ", " else "") +
-        "\"" + k + "\"" + ": " + v
+        quote(k) + ": " + v
       }
     } +
     "}"
@@ -236,9 +247,9 @@ object SauceConnect {
       }
       args.add(new PyString("--squid-opts"))
       if (options.hasOption('S')) {
-        args.add(new PyString("server_persistent_connections off," + options.getOptionValue('S')))
+        args.add(new PyString(options.getOptionValue('S')))
       } else {
-        args.add(new PyString("server_persistent_connections off"))
+        args.add(new PyString(""))
       }
     }
 
