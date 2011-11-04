@@ -34,7 +34,6 @@ import org.jboss.netty.channel.socket.nio.{NioClientSocketChannelFactory,
                                            NioServerSocketChannelFactory}
 import org.jboss.netty.util.HashedWheelTimer
 import org.jboss.netty.handler.ssl.SslHandler
-import org.jboss.netty.handler.timeout.ReadTimeoutHandler
 import javax.net.ssl.ManagerFactoryParameters
 import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactorySpi
@@ -360,9 +359,6 @@ class KgpPacketEncoder extends OneToOneEncoder {
 }
 
 
-object ConnTimer extends HashedWheelTimer {}
-
-
 class ProxyClientConn(id: Long,
                       client: KgpClient,
                       cf: ClientSocketChannelFactory,
@@ -387,17 +383,9 @@ class ProxyClientConn(id: Long,
 
   log.debug(id + " connecting to proxied tcp server " + remoteHost + ":" + remotePort)
 
-  // Configure connection settings, basically
-  class TimeoutPipelineFactory(timer: Timer) extends ChannelPipelineFactory {
-    def getPipeline(): ChannelPipeline = {
-      Channels.pipeline(new ReadTimeoutHandler(timer, 2),
-                        new TcpHandler())
-    }
-  }
-
   // Start the connection attempt.
   val cb = new ClientBootstrap(cf)
-  cb.setPipelineFactory(new TimeoutPipelineFactory(ConnTimer))
+  cb.getPipeline.addLast("handler", new TcpHandler())
   val f = cb.connect(new InetSocketAddress(remoteHost, remotePort))
 
   tcpChannel = f.getChannel
