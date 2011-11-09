@@ -19,6 +19,8 @@ package com.saucelabs.sauceconnect
 import com.saucelabs.sauceconnect.proxy.SauceProxy
 
 import org.apache.commons.cli._
+import org.apache.commons.logging.Log
+import org.apache.commons.logging.LogFactory
 import org.bouncycastle.util.encoders.Base64
 import util.parsing.json.JSON
 import org.python.core.PyList
@@ -32,9 +34,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLConnection
 import java.util.ArrayList
+import java.lang.reflect.InvocationTargetException
 
 import collection.mutable
 import io.Source
+import scala.tools.util.SignalManager
 
 object Json {
   def quote(s: String): String = {
@@ -82,6 +86,7 @@ object Json {
  * the {@link #closeTunnel()} methods.
  */
 object SauceConnect {
+  private val log = LogFactory.getLog(this.getClass)
   var _interpreter:PythonInterpreter = null
 
   val BUILD = 25
@@ -97,6 +102,13 @@ object SauceConnect {
   var tunnel:Tunnel = null
 
   def main(args: Array[String]) {
+    for (sig <- Array("ABRT", "BREAK", "HUP", "INT", "QUIT", "TERM")) {
+      try {
+        SignalManager(sig) += log.warn("received SIG" + sig)
+      } catch {
+        case e: InvocationTargetException => {}
+      }
+    }
     storeCommandLineArgs(args)
     for (s <- args) {
       if (s.equals("-l") || s.equals("--lite")) {

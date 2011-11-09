@@ -73,6 +73,7 @@ is_windows = platform.system().lower() == "windows"
 is_openbsd = platform.system().lower() == "openbsd"
 logger = logging.getLogger(NAME)
 fileout = None
+dying = False
 
 
 class DeleteRequest(urllib2.Request):
@@ -242,7 +243,7 @@ class TunnelMachine(object):
             if status == "running":
                 break
             if status in ["halting", "terminated"]:
-                raise TunnelMachineBootError("tunnel remote VM was shutdown")
+                raise TunnelMachineBootError("Tunnel remote VM was shut down")
             if status != previous_status:
                 logger.info("Tunnel remote VM is %s .." % status)
             previous_status = status
@@ -280,7 +281,7 @@ class TunnelMachine(object):
                 logger.info("Tunnel remote VM is %s .." % status)
             previous_status = status
             time.sleep(REST_POLL_WAIT)
-        logger.info("Tunnel remote VM is shut down")
+        logger.info("Finished shutting down tunnel remote VM")
         self.is_shutdown = True
 
     # Make us usable with contextlib.closing
@@ -551,6 +552,10 @@ class ReverseSSH(object):
 
 def peace_out(tunnel=None, returncode=0, atexit=False):
     """Shutdown the tunnel and raise SystemExit."""
+    global dying
+    if dying:
+        return
+    dying = True
     if tunnel:
         tunnel.shutdown()
     if not atexit:
@@ -939,6 +944,8 @@ def run(options, dependency_versions=None,
             break
         except TunnelMachineError, e:
             logger.warning(e)
+            if dying:
+                return
             if attempt < RETRY_BOOT_MAX:
                 logger.info("Requesting new tunnel")
                 continue
