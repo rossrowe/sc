@@ -46,6 +46,7 @@ class KgpTunnel extends Tunnel {
   private var readyfile: File = null
 
   var proxyServer: ProxyServer = null
+  var sauceProxy: SauceProxy = null
 
   SauceConnect.tunnel = this
 
@@ -106,6 +107,27 @@ class KgpTunnel extends Tunnel {
     }
   }
 
+  def checkTunnelStatus(): Boolean = {
+    try {
+      val path = "/tunnels/%s" format (getTunnelSetting("id"))
+      val result = restCall("GET", path, null)
+      if (!result.contains("status")) {
+        println(result)
+        return false
+      }
+      if (result("status") != "running") {
+        println(result)
+        return false
+      }
+    } catch {
+      case e:IOException => {
+        System.err.println("Error connecting to Sauce OnDemand REST API: ")
+        e.printStackTrace()
+      }
+    }
+    return true
+  }
+
   def reportError(info: String): Boolean = {
     try {
       log.error("REPORTING an error to Sauce Labs with info: " + info)
@@ -126,7 +148,7 @@ class KgpTunnel extends Tunnel {
     return false
   }
 
-  def run(readyfile:String) = {
+  def run(readyfile:String): Unit = {
     if (readyfile != null) {
       this.readyfile = new File(readyfile)
       this.readyfile.delete()
@@ -146,7 +168,15 @@ class KgpTunnel extends Tunnel {
     var last_report = 0L
     while (true) {
       val start = System.currentTimeMillis()
+
+      if (!checkTunnelStatus()) {
+        log.warn("Remote tunnel VM no longer running, shutting down")
+        stop()
+        return
+      }
+
       forwarded_health.check()
+
       if (start - last_report > report_interval) {
         if (checkProxy()) {
           reportConnectedStatus()
@@ -183,9 +213,9 @@ class KgpTunnel extends Tunnel {
     } else {
 
       try {
-        val proxy = new SauceProxy(se_port.toInt, "localhost",
+        sauceProxy = new SauceProxy(se_port.toInt, "localhost",
                                    proxyServer.getPort)
-        proxy.start()
+        sauceProxy.start()
       } catch {
         case e:Exception => {
           System.err.println("Error starting proxy: " + e.getMessage)
@@ -231,5 +261,11 @@ class KgpTunnel extends Tunnel {
       this.readyfile.delete()
     }
     client.close()
+    if (sauceProxy != null) {
+      sauceProxy.stop()
+    }
+    if (proxyServer != null) {
+      proxyServer.stop()
+    }
   }
 }

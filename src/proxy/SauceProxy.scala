@@ -40,4 +40,5 @@ class SauceProxy(port: Int, val targetHost: String, val targetPort: Int) {
   def getPort() = this.server.getConnectors()(0).getLocalPort()
 
   def start() = this.server.start()
+  def stop() = this.server.stop()
 }

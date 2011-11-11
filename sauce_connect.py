@@ -91,6 +91,10 @@ class HTTPResponseError(Exception):
         return "HTTP server responded with '%s' (expected 'OK')" % self.msg
 
 
+class ShutdownRequestedError(Exception):
+    pass
+
+
 class TunnelMachineError(Exception):
     pass
 
@@ -243,7 +247,10 @@ class TunnelMachine(object):
             if status == "running":
                 break
             if status in ["halting", "terminated"]:
-                raise TunnelMachineBootError("Tunnel remote VM was shut down")
+                if doc.get('user_shut_down'):
+                    raise ShutdownRequestedError("Tunnel shut down by user (or another Sauce Connect process), quitting")
+                else:
+                    raise TunnelMachineBootError("Tunnel remote VM was shut down")
             if status != previous_status:
                 logger.info("Tunnel remote VM is %s .." % status)
             previous_status = status
@@ -560,7 +567,6 @@ def peace_out(tunnel=None, returncode=0, atexit=False):
         tunnel.shutdown()
     if not atexit:
         logger.info("\ Exiting /")
-        raise SystemExit(returncode)
     else:
         logger.debug("-- fin --")
 
@@ -578,7 +584,8 @@ def setup_signal_handler(tunnel, options):
                     "exit now!", signal_name[signum], signal_count[signum])
                 raise SystemExit(1)
         logger.info("Received signal %s", signal_name[signum])
-        peace_out(tunnel)  # exits
+        peace_out(tunnel)
+        raise SystemExit(0)
 
     # TODO: ?? remove SIGTERM when we implement tunnel leases
     if is_windows:
@@ -886,7 +893,7 @@ def run(options, dependency_versions=None,
     if not options.quiet:
         print ".---------------------------------------------------."
         print "|  Have questions or need help with Sauce Connect?  |"
-        print "|  Contact us: http://saucelabs.com/forums          |"
+        print "|  Contact us: http://support.saucelabs.com/forums  |"
         print "|  Terms of Service: http://saucelabs.com/tos       |"
         print "-----------------------------------------------------"
     logger.info("/ Starting \\")
@@ -936,22 +943,30 @@ def run(options, dependency_versions=None,
                                    metadata)
         except TunnelMachineError, e:
             logger.error(e)
-            peace_out(returncode=1)  # exits
+            peace_out(returncode=1)
+            return
         setup_signal_handler(tunnel, options)
         atexit.register(peace_out, tunnel, atexit=True)
         try:
             tunnel.ready_wait()
             break
         except TunnelMachineError, e:
-            logger.warning(e)
             if dying:
                 return
+            logger.warning(e)
             if attempt < RETRY_BOOT_MAX:
                 logger.info("Requesting new tunnel")
                 continue
             logger.error("!! Could not get tunnel remote VM")
             logger.info("** Please contact help@saucelabs.com")
-            peace_out(tunnel, returncode=1)  # exits
+            peace_out(tunnel, returncode=1)
+            return
+        except ShutdownRequestedError, e:
+            if dying:
+                return
+            logger.warning(e)
+            peace_out(returncode=1)
+            return
 
     def scala_cons(cls):
         class scala_subclass(cls):
@@ -975,7 +990,7 @@ def run(options, dependency_versions=None,
     except InterruptedException, e:
         logger.info("Exiting due to interrupt")
         return
-    peace_out(tunnel)  # exits
+    peace_out(tunnel)
 
 
 def main():

@@ -100,6 +100,7 @@ object SauceConnect {
   var apikey = ""
   var strippedArgs = new PyList()
   var tunnel:Tunnel = null
+  var sauceProxy:SauceProxy = null
 
   def main(args: Array[String]) {
     for (sig <- Array("ABRT", "BREAK", "HUP", "INT", "QUIT", "TERM")) {
@@ -118,6 +119,7 @@ object SauceConnect {
       }
     }
     openConnection()
+    System.exit(0)
   }
 
 
@@ -273,8 +275,14 @@ object SauceConnect {
     versionCheck()
     setupArgumentList()
     setupTunnel()
+    if (!liteMode) {
+      startProxy()
+    }
     addShutdownHandler()
     startTunnel()
+    if (sauceProxy != null) {
+      sauceProxy.stop()
+    }
   }
 
   def startTunnel() {
@@ -335,10 +343,6 @@ object SauceConnect {
       if (commandLineArguments.hasOption("proxy-host")) {
         domain = commandLineArguments.getOptionValue("proxy-host")
       }
-      if (!commandLineArguments.hasOption("dont-update-proxy-host")) {
-        val port = 33128
-        //updateDefaultProxyHost(domain, port)
-      }
       SauceConnect.interpreter.set(
         "arglist",
         generateArgsForSauceConnect(domain, commandLineArguments))
@@ -347,9 +351,9 @@ object SauceConnect {
 
   def startProxy() {
     try {
-      val proxy = new SauceProxy(0, "", 0)
-      proxy.start()
-      SauceConnect.interpreter.exec("options.ports = ['" + proxy.getPort + "']")
+      sauceProxy = new SauceProxy(0, "", 0)
+      sauceProxy.start()
+      SauceConnect.interpreter.exec("options.ports = ['" + sauceProxy.getPort + "']")
     } catch {
       case e:Exception => {
         System.err.println("Error starting proxy: " + e.getMessage)
@@ -363,9 +367,6 @@ object SauceConnect {
 
   def setupTunnel() {
     setupLogging()
-    if (!liteMode) {
-      startProxy()
-    }
     setupSignalHandler()
   }
 
@@ -386,53 +387,7 @@ object SauceConnect {
   }
 
   def removeHandler() {
-    if (!liteMode) {
-      if (commandLineArguments != null && !commandLineArguments.hasOption("dont-update-proxy-host")) {
-        updateDefaultProxyHost(null, 0)
-      }
-    }
     SauceConnect.interpreter.exec("sauce_connect.logger.removeHandler(sauce_connect.fileout)")
-  }
-
-  def updateDefaultProxyHost(proxyHost: String,
-                             proxyPort: Int) {
-    try {
-      val restEndpoint = new URL(restURL + "/" + username + "/defaults")
-      var auth = username + ":" + apikey
-      auth = "Basic " + new String(Base64.encode(auth.getBytes))
-      val connection = restEndpoint.openConnection()
-      connection.setRequestProperty("Authorization", auth)
-      val data = Source.fromInputStream(connection.getInputStream).mkString("")
-      val currentDefaults = mutable.Map(Json.decode(data).toSeq: _*)
-      if (proxyHost != null) {
-        currentDefaults("proxy-host") = proxyHost + ":" + proxyPort
-      } else {
-        currentDefaults.remove("proxy-host")
-      }
-
-      val postBack = restEndpoint.openConnection.asInstanceOf[HttpURLConnection]
-      postBack.setDoOutput(true)
-      postBack.setRequestMethod("PUT")
-      postBack.setRequestProperty("Authorization", auth)
-      val newDefaults = Json.encode(currentDefaults.toMap)
-      postBack.getOutputStream.write(newDefaults.getBytes)
-      postBack.getInputStream.close()
-    } catch {
-      case e:IOException => {
-        System.err.println("Error connecting to Sauce OnDemand REST API: ")
-        e.printStackTrace()
-        if (standaloneMode) {
-          System.exit(5)
-        }
-      }
-      case e:org.json.simple.parser.ParseException => {
-        System.err.println("Error reading from Sauce OnDemand REST API: ")
-        e.printStackTrace()
-        if (standaloneMode) {
-          System.exit(5)
-        }
-      }
-    }
   }
 
   def versionCheck() {

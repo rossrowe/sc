@@ -620,12 +620,11 @@ class ProxyTcpHandler(client: KgpClient) extends SimpleChannelUpstreamHandler {
 class ProxyServer(client: KgpClient, port: Int) {
   var channel: Channel = null
   private val log = LogFactory.getLog(this.getClass)
+  val e1 = Executors.newSingleThreadScheduledExecutor
+  val e2 = Executors.newSingleThreadScheduledExecutor
   def serve() {
     try {
-      val cf = new NioServerSocketChannelFactory(
-        Executors.newSingleThreadScheduledExecutor,
-        Executors.newSingleThreadScheduledExecutor,
-        1)
+      val cf = new NioServerSocketChannelFactory(e1, e2, 1)
       val bootstrap = new ServerBootstrap(cf)
       bootstrap.setPipelineFactory(new ChannelPipelineFactory {
         override def getPipeline: ChannelPipeline = {
@@ -640,6 +639,16 @@ class ProxyServer(client: KgpClient, port: Int) {
           throw e
         }
     }
+  }
+
+  def stop() = {
+    channel.unbind()
+    channel.close()
+
+    e1.shutdownNow()
+    e2.shutdownNow()
+    e1.awaitTermination(10000, TimeUnit.MILLISECONDS)
+    e2.awaitTermination(10000, TimeUnit.MILLISECONDS)
   }
 
   def getPort(): Int = {
@@ -692,10 +701,10 @@ class KgpClient(host: String, port: Int, forwardPort: Int, val metadataJson: Str
 
   private val log = LogFactory.getLog(this.getClass)
 
-  val cf = new NioClientSocketChannelFactory(
-    Executors.newSingleThreadScheduledExecutor,
-    Executors.newSingleThreadScheduledExecutor,
-    1)
+  val e1 = Executors.newSingleThreadScheduledExecutor
+  val e2 = Executors.newSingleThreadScheduledExecutor
+
+  val cf = new NioClientSocketChannelFactory(e1, e2, 1)
   // Configure the server.
   val bootstrap = new ClientBootstrap(cf)
   val timer = new HashedWheelTimer()
@@ -816,6 +825,11 @@ class KgpClient(host: String, port: Int, forwardPort: Int, val metadataJson: Str
           if (currentChannel != null) {
             currentChannel.close()
           }
+          e1.shutdownNow()
+          e2.shutdownNow()
+          e1.awaitTermination(10000, TimeUnit.MILLISECONDS)
+          e2.awaitTermination(10000, TimeUnit.MILLISECONDS)
+          exit()
         }
       }
     }
