@@ -79,6 +79,11 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
 
   protected val cache = new LinkedHashMap[String, String]()
 
+  def formatException(e: Exception): String = {
+    return (Array(e.toString) ++
+            e.getStackTrace.map(_.toString)).deep.mkString("\n    at ")
+  }
+
   override def handle(target: String, baseRequest: Request, request: javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
     if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod)) {
       val host = request.getRequestURL.toString
@@ -118,7 +123,8 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
         if (!response.isCommitted()) {
           response.sendError(400, "Could not proxy " + url + "\n" + e)
         }
-        SauceConnect.reportError("Could not proxy " + url + ", exception: " + e)
+        SauceConnect.reportError("Could not proxy " + url + ", exception: " +
+                                 formatException(e))
       }
     }
   }
@@ -476,8 +482,8 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
           log.warn("Exception proxying response after " + duration + "ms, committed? " + response.isCommitted())
           SauceConnect.reportError("Exception proxying response for " + url + "\n" +
                                    "after " + duration + "ms\n" +
-                                   "exception: " + e + "\n" +
                                    "message: " + e.getLocalizedMessage + "\n" +
+                                   "exception: " + formatException(e) + "\n" +
                                    stats)
           log.warn("message for exception: " + e.getLocalizedMessage)
           throw e
