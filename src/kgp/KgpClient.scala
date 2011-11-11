@@ -509,10 +509,10 @@ class ProxyServerConn(id: Long,
   override def dataReceived(msg: ChannelBuffer) {
     if (isRemoteShutdown) {
       if (isLocalShutdown) {
-        log.warn("got a message from remote after full shutdown!")
+        log.warn(id + " ERROR got a message from remote after full shutdown!")
         throw new Exception("got a message from remote after full shutdown!")
       } else {
-        log.warn("got a message from remote after remote shutdown!")
+        log.warn(id + "ERROR got a message from remote after remote shutdown!")
         throw new Exception("got a message from remote after remote shutdown!")
       }
     }
