@@ -87,7 +87,8 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
   override def handle(target: String, baseRequest: Request, request: javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
     if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod)) {
       val host = request.getRequestURL.toString
-      log.info("CONNECT request for " + host)
+      val url = baseRequest.getUri.toString
+      log.info("CONNECT request for " + host + " url " + url)
       handleConnect(baseRequest, request, response, host)
       return
     }

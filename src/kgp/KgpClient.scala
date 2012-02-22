@@ -1,5 +1,7 @@
 package com.saucelabs.kgp
 
+import com.saucelabs.sauceconnect._
+
 import org.apache.commons.logging.Log
 import org.apache.commons.logging.LogFactory
 
@@ -423,9 +425,11 @@ class ProxyClientConn(id: Long,
     if (isRemoteShutdown) {
       if (isLocalShutdown) {
         log.warn(id + " ERROR: got a message from remote after full shutdown!")
+        SauceConnect.reportError(id + " ERROR: got a message from remote after full shutdown!")
         throw new Exception("got a message from remote after full shutdown!")
       } else {
         log.warn(id + " ERROR: got a message from remote after remote shutdown!")
+        SauceConnect.reportError(id + " ERROR: got a message from remote after remote shutdown!")
         throw new Exception("got a message from remote after remote shutdown!")
       }
     }
@@ -456,6 +460,7 @@ class ProxyClientConn(id: Long,
       //log.info("got a message from proxied tcp server, relaying to conn " + id + ": " + msg.toString(UTF_8))
       if (isLocalShutdown) {
         log.error(id + " ERROR: got a message from proxied tcp server after local shutdown, ignoring: " + msg.readableBytes + " bytes")
+        SauceConnect.reportError(id + " ERROR: got a message from proxied tcp server after local shutdown, ignoring: " + msg.readableBytes + " bytes")
       } else {
         //log.info(id + " got a message from proxied tcp server, relaying: " + msg.readableBytes + " bytes")
       }
@@ -510,9 +515,11 @@ class ProxyServerConn(id: Long,
     if (isRemoteShutdown) {
       if (isLocalShutdown) {
         log.warn(id + " ERROR got a message from remote after full shutdown!")
+        SauceConnect.reportError(id + " ERROR got a message from remote after full shutdown!")
         throw new Exception("got a message from remote after full shutdown!")
       } else {
         log.warn(id + "ERROR got a message from remote after remote shutdown!")
+        SauceConnect.reportError(id + "ERROR got a message from remote after remote shutdown!")
         throw new Exception("got a message from remote after remote shutdown!")
       }
     }

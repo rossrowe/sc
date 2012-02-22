@@ -112,11 +112,11 @@ class KgpTunnel extends Tunnel {
       val path = "/tunnels/%s" format (getTunnelSetting("id"))
       val result = restCall("GET", path, null)
       if (!result.contains("status")) {
-        println(result)
+        log.error("no status field in tunnel GET result: " + result)
         return false
       }
       if (result("status") != "running") {
-        println(result)
+        log.info("status check found tunnel in " + result("status"))
         return false
       }
     } catch {
