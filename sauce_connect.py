@@ -49,6 +49,15 @@ try:
 except ImportError:
     class InterruptedException(Exception): pass
 
+try:
+  # Apparently native Java exceptions are being raised with a different
+  # baseclass other than the standard Python 'Exception' baseclass. This
+  # means catch-all except blocks wlil not work unless they except for both
+  # Exception *and* JavaException
+  from java.lang import Exception as JavaException
+except ImportError:
+  class JavaException(Exception): pass
+
 NAME = "sauce_connect"
 RELEASE = 26
 DISPLAY_VERSION = "%s release %s" % (NAME, RELEASE)
@@ -178,10 +187,15 @@ class TunnelMachine(object):
 
     @_retry_rest_api
     def _get_doc(self, url_or_req):
-        with closing(self.urlopen(url_or_req)) as resp:
-            if resp.msg != "OK":
-                raise HTTPResponseError(resp.msg)
-            return json.loads(resp.read())
+        try:
+            with closing(self.urlopen(url_or_req)) as resp:
+                if resp.msg != "OK":
+                    raise HTTPResponseError(resp.msg)
+                return json.loads(resp.read())
+        except JavaException, ex:
+            # Running under Jython, JavaException is raised instead of
+            # HTTP Exceptions
+            raise HTTPResponseError(unicode(ex))
 
     def _provision_tunnel(self):
         # Shutdown any tunnel using a requested domain
