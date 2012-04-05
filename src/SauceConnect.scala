@@ -267,7 +267,6 @@ object SauceConnect {
       }
     }
 
-    println(args)
     return new PyList(args)
   }
 
