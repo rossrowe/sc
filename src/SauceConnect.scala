@@ -92,7 +92,6 @@ object SauceConnect {
   val BUILD = 26
   val RELEASE = 18
   var commandLineArguments:CommandLine = null
-  var liteMode:Boolean = false
   var standaloneMode:Boolean = true
   var restURL = ""
   var sePort = ""
@@ -112,11 +111,7 @@ object SauceConnect {
     }
     storeCommandLineArgs(args)
     for (s <- args) {
-      if (s.equals("-l") || s.equals("--lite")) {
-        liteMode = true
-      } else {
-        strippedArgs.add(new PyString(s))
-      }
+      strippedArgs.add(new PyString(s))
     }
     openConnection()
     System.exit(0)
@@ -146,10 +141,7 @@ object SauceConnect {
 
     options.addOption("h", "help", false, "Display this help text")
     options.addOption("v", "version", false, "Print the version and exit")
-    options.addOption("b", "boost-mode", false, null)
-    options.addOption("s", "ssh", false, null)
     options.addOption("d", "debug", false, "Enable verbose debugging")
-    options.addOption("l", "lite", false, null)
     val sePortOpt = new Option("P", "se-port", true, null)
     sePortOpt.setArgName("PORT")
     options.addOption(sePortOpt)
@@ -252,9 +244,6 @@ object SauceConnect {
         args.add(new PyString("--readyfile"))
           args.add(new PyString(options.getOptionValue('f')))
       }
-      if (options.hasOption('s')) {
-        args.add(new PyString("--ssh"))
-      }
       if (options.hasOption('F')) {
         args.add(new PyString("--fast-fail-regexps"))
         args.add(new PyString(options.getOptionValue('F')))
@@ -274,9 +263,7 @@ object SauceConnect {
     versionCheck()
     setupArgumentList()
     setupTunnel()
-    if (!liteMode) {
-      startProxy()
-    }
+    startProxy()
     addShutdownHandler()
     startTunnel()
     if (sauceProxy != null) {
@@ -286,23 +273,13 @@ object SauceConnect {
 
   def startTunnel() {
     try {
-      if (commandLineArguments.hasOption("s")) {
-        SauceConnect.interpreter.exec("from com.saucelabs.sauceconnect import ReverseSSH as JavaReverseSSH")
-      } else {
-        SauceConnect.interpreter.exec("from com.saucelabs.sauceconnect import KgpTunnel as JavaReverseSSH")
-      }
+      SauceConnect.interpreter.exec("from com.saucelabs.sauceconnect import KgpTunnel as JavaReverseSSH")
       var startCommand: String = null
-      if (liteMode) {
-        startCommand = ("sauce_connect.run(options,"
-                        + "setup_signal_handler=setup_java_signal_handler,"
-                        + "reverse_ssh=JavaReverseSSH)")
-      } else {
-        startCommand = ("sauce_connect.run(options,"
-                        + "setup_signal_handler=setup_java_signal_handler,"
-                        + "reverse_ssh=JavaReverseSSH,do_check_version=False,"
-                        + "release=\"3.0-r" + RELEASE + "\","
-                        + "build=\"" + BUILD + "\")")
-      }
+      startCommand = ("sauce_connect.run(options,"
+                      + "setup_signal_handler=setup_java_signal_handler,"
+                      + "reverse_ssh=JavaReverseSSH,do_check_version=False,"
+                      + "release=\"3.0-r" + RELEASE + "\","
+                      + "build=\"" + BUILD + "\")")
       SauceConnect.interpreter.exec(startCommand)
     } catch {
       case e:Exception => {
@@ -324,9 +301,6 @@ object SauceConnect {
       Runtime.getRuntime().addShutdownHook(new Thread() {
         override def run() {
           removeHandler()
-          if (liteMode) {
-            mainThread.interrupt()
-          }
           closeTunnel()
         }
       })
@@ -334,18 +308,14 @@ object SauceConnect {
   }
 
   def setupArgumentList() {
-    if (liteMode) {
-      SauceConnect.interpreter.set("arglist", strippedArgs)
-    } else {
-      var domain = "sauce-connect.proxy"
+    var domain = "sauce-connect.proxy"
 
-      if (commandLineArguments.hasOption("proxy-host")) {
-        domain = commandLineArguments.getOptionValue("proxy-host")
-      }
-      SauceConnect.interpreter.set(
-        "arglist",
-        generateArgsForSauceConnect(domain, commandLineArguments))
+    if (commandLineArguments.hasOption("proxy-host")) {
+      domain = commandLineArguments.getOptionValue("proxy-host")
     }
+    SauceConnect.interpreter.set(
+      "arglist",
+      generateArgsForSauceConnect(domain, commandLineArguments))
   }
 
   def startProxy() {
@@ -391,9 +361,6 @@ object SauceConnect {
 
   def versionCheck() {
     try {
-      if (liteMode) {
-        return
-      }
       val downloadURL = getDownloadURL(RELEASE)
       if (downloadURL != null) {
         System.err.println("** This version of Sauce Connect is outdated.\n" +
