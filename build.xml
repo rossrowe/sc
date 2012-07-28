@@ -1,0 +1,144 @@
+<project name="Sauce Connect 2" default="release" basedir=".">
+  <!-- set global properties for this build -->
+  <property environment="env"/>
+  <property name="src" location="src"/>
+  <property name="tests" location="tests"/>
+  <property name="testbuild" location="testbuild"/>
+  <property name="build" location="bin"/>
+  <property name="dist"  location="dist"/>
+  <property name="scala.home" location="/${env.SCALA_HOME}"/>
+
+  <target name="init">
+    <property
+      name="scala-library.jar"
+      value="${scala.home}/lib/scala-library.jar"
+       />
+    <property
+      name="scala-compiler.jar"
+      value="${scala.home}/lib/scala-compiler.jar"
+       />
+    <path id="build.classpath">
+      <pathelement location="${scala-library.jar}"/>
+      <pathelement location="${scala-compiler.jar}"/>
+      <pathelement location="${build}"/>
+    </path>
+    <path id="test.classpath">
+      <pathelement location="${scala-library.jar}"/>
+      <pathelement location="${scala-compiler.jar}"/>
+      <pathelement location="${build}"/>
+      <pathelement location="${testbuild}"/>
+    </path>
+    <taskdef resource="scala/tools/ant/antlib.xml">
+      <classpath>
+        <pathelement location="${scala-compiler.jar}"/>
+        <pathelement location="${scala-library.jar}"/>
+      </classpath>
+    </taskdef>
+    <!-- Create the build directory structure used by compile -->
+    <mkdir dir="${build}"/>
+  </target>
+
+  <target name="compile" depends="init"
+        description="compile the source " >
+    <!-- Compile the scala code from ${src} into ${build} -->
+    <scalac classpathref="build.classpath" srcdir="${src}" destdir="${build}" scalacdebugging="true" target="jvm-1.5" deprecation="on">
+      <include name="**/*.scala"/>
+        <classpath>
+            <fileset dir="lib">
+                <include name="**/*.jar"/>
+            </fileset>
+            <fileset dir=".">
+                <include name="forms-1.3.0.jar"/>
+            </fileset>
+        </classpath>
+    </scalac>
+    <!-- Compile the java code from ${src} into ${build} -->
+    <javac srcdir="${src}" destdir="${build}" debug="on" includeAntRuntime="false" target="1.5">
+        <classpath>
+            <fileset dir="${scala.home}">
+                <include name="lib/scala-library.jar"/>
+                <include name="lib/scala-compiler.jar"/>
+            </fileset>
+            <fileset dir="lib">
+                <include name="**/*.jar"/>
+            </fileset>
+            <fileset dir=".">
+                <include name="forms-1.3.0.jar"/>
+            </fileset>
+        </classpath>
+    </javac>
+  </target>
+
+  <target name="jar" depends="compile"
+        description="build the standalone jar" >
+    <mkdir dir="${dist}"/>
+
+    <taskdef name="jarjar" classname="com.tonicsystems.jarjar.JarJarTask"
+        classpath="lib/jarjar-1.0.jar"/>
+    <jarjar jarfile="${dist}/Sauce-Connect.jar" basedir="${build}">
+        <fileset dir="${build}"/>
+        <fileset dir="." includes="sslSupport/*,sauce_connect.py,java_urllib2.py"/>
+        <zipfileset src="lib/bcprov-jdk15-135.jar" excludes="META-INF/BCKEY.*"/>
+        <zipfileset src="lib/commons-logging-1.1.1.jar"/>
+        <zipfileset src="lib/commons-cli-1.2.jar"/>
+        <zipfileset src="lib/javax.servlet.jar"/>
+        <!-- Jetty version 5 -->
+        <zipfileset src="lib/org.mortbay.jetty.jar"/>
+        <!-- Jetty version 7 -->
+        <zipfileset src="lib/jetty-http-7.2.1.v20101111.jar"/>
+        <zipfileset src="lib/jetty-continuation-7.2.1.v20101111.jar"/>
+        <zipfileset src="lib/jetty-server-7.2.1.v20101111.jar"/>
+        <zipfileset src="lib/jetty-servlet-7.2.1.v20101111.jar"/>
+        <zipfileset src="lib/jetty-util-7.2.1.v20101111.jar"/>
+        <zipfileset src="lib/jetty-io-7.2.1.v20101111.jar"/>
+        <zipfileset src="lib/jython.jar"/>
+        <zipfileset src="lib/json_simple-1.1.jar"/>
+        <zipfileset src="forms-1.3.0.jar"/>
+        <zipfileset src="lib/ganymed-ssh2-build251beta1.jar"/>
+	<zipfileset src="${scala-library.jar}"/>
+	<zipfileset src="${scala-compiler.jar}"/>
+	<zipfileset src="lib/netty-3.2.5.sauce1.jar"/>
+        <manifest>
+          <attribute name="Main-Class" value="com.saucelabs.sauceconnect.SauceConnect"/>
+        </manifest>
+    </jarjar>
+   </target>
+
+   <target name="release" depends="jar"
+     description="Build a zip suitable for release">
+    <zip zipfile="${dist}/Sauce-Connect.zip">
+      <fileset dir="." includes="license.html,NOTICE.txt"/>
+      <fileset dir="${dist}" includes="Sauce-Connect.jar"/>
+    </zip>
+   </target>
+
+   <target name="test" depends="jar" description="run tests">
+    <scalac classpathref="build.classpath" srcdir="${tests}" destdir="${testbuild}" scalacdebugging="true" target="jvm-1.5">
+      <include name="**/*.scala"/>
+        <classpath>
+            <fileset dir="lib">
+                <include name="**/*.jar"/>
+            </fileset>
+            <fileset dir=".">
+                <include name="forms-1.3.0.jar"/>
+            </fileset>
+        </classpath>
+    </scalac>
+    <java classname="org.scalatest.tools.Runner" classpathref="test.classpath">
+      <arg line="-p ${testbuild} -o -c10"/>
+      <classpath>
+        <fileset dir="lib">
+          <include name="**/*.jar"/>
+        </fileset>
+      </classpath>
+    </java>
+   </target>
+
+
+   <target name="clean"
+           description="clean up" >
+     <!-- Delete the ${build} and ${dist} directory trees -->
+     <delete dir="${build}"/>
+     <delete dir="${dist}"/>
+   </target>
+</project>
