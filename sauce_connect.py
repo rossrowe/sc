@@ -377,7 +377,7 @@ class ReverseSSHError(Exception):
 
 
 def peace_out(tunnel=None, returncode=0, atexit=False):
-    """Shutdown the tunnel and raise SystemExit."""
+    """Shutdown the tunnel because we're exiting."""
     global dying
     if dying:
         return
@@ -387,7 +387,7 @@ def peace_out(tunnel=None, returncode=0, atexit=False):
     if not atexit:
         logger.info("\ Exiting /")
     else:
-        logger.debug("-- fin --")
+        logger.info("\ Finished /")
 
 
 def setup_signal_handler(tunnel, options):
@@ -666,4 +666,5 @@ def run(options,
     except InterruptedException, e:
         logger.info("Exiting due to interrupt")
         return
+    logger.info("Finished running tunnel")
     peace_out(tunnel)

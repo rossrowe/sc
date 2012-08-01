@@ -166,27 +166,34 @@ class KgpTunnel extends Tunnel {
     val health_check_interval = SauceConnect.getHealthCheckInterval
     val report_interval = 60
     var last_report = 0L
-    while (true) {
-      val start = System.currentTimeMillis()
+    try {
+      while (true) {
+        val start = System.currentTimeMillis()
 
-      if (!checkTunnelStatus()) {
-        log.warn("Remote tunnel VM no longer running, shutting down")
-        stop()
-        return
-      }
-
-      forwarded_health.check()
-
-      if (start - last_report > report_interval) {
-        if (checkProxy()) {
-          reportConnectedStatus()
-        } else {
-          log.warn("End-to-end connection check failed")
+        if (!checkTunnelStatus()) {
+          log.warn("Remote tunnel VM no longer running, shutting down")
+          stop()
+          return
         }
-        last_report = start
+
+        forwarded_health.check()
+
+        if (start - last_report > report_interval) {
+          if (checkProxy()) {
+            reportConnectedStatus()
+          } else {
+            log.warn("End-to-end connection check failed")
+          }
+          last_report = start
+        }
+        if ((health_check_interval - (System.currentTimeMillis()-start)) > 0) {
+          Thread.sleep(health_check_interval - (System.currentTimeMillis()-start))
+        }
       }
-      if ((health_check_interval - (System.currentTimeMillis()-start)) > 0) {
-        Thread.sleep(health_check_interval - (System.currentTimeMillis()-start))
+    } catch {
+      case e:Exception => {
+        System.err.println("Error checking tunnel status: " + e.getMessage)
+        throw e;
       }
     }
   }
