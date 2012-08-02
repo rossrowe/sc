@@ -648,6 +648,11 @@ def run(options,
         class scala_subclass(cls):
             def __init__(self, **kwargs):
                 cls.__init__(self)
+                # Scala and Jython don't understand how to pass
+                # constructor kwargs from Jython to Scala. What we can
+                # do instead is, after the Scala constructor runs, use
+                # all the keyword args to set the corresponding
+                # members on the object.
                 for k, v in kwargs.iteritems():
                     getattr(self, k + '_$eq')(v)
         return scala_subclass
