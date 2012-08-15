@@ -45,11 +45,6 @@ try:
 except ImportError:
   class JavaException(Exception): pass
 
-NAME = "sauce_connect"
-RELEASE = 27
-DISPLAY_VERSION = "%s release %s" % (NAME, RELEASE)
-PRODUCT_NAME = u"Sauce Connect"
-
 RETRY_PROVISION_MAX = 4
 RETRY_BOOT_MAX = 4
 RETRY_REST_WAIT = 5
@@ -63,7 +58,7 @@ LATENCY_WARNING = 350  # warn when making connections takes this many ms
 SIGNALS_RECV_MAX = 4  # used with --allow-unclean-exit
 
 is_windows = platform.system().lower() == "windows"
-logger = logging.getLogger(NAME)
+logger = logging.getLogger(__name__)
 fileout = None
 dying = False
 
@@ -439,31 +434,9 @@ def setup_logging(logfile=None, quiet=False):
 
 
 def get_options(arglist=sys.argv[1:]):
-    usage = """
-Usage: %(name)s -u <user> -k <api_key> -s <webserver> -d <domain> [options]
+    logfile = "sauce_connect.log"
 
-Examples:
-  Have tests for example.com go to a staging server on your intranet:
-    %(name)s -u user -k 123-abc -s staging.local -d example.com
-
-  Have HTTP and HTTPS traffic for *.example.com go to the staging server:
-    %(name)s -u user -k 123-abc -s staging.local -p 80 -p 443 \\
-                 -d example.com -d *.example.com
-
-  Have tests for example.com go to your local machine on port 5000:
-    %(name)s -u user -k 123-abc -s 127.0.0.1 -t 80 -p 5000 -d example.com
-
-Performance tip:
-  It is highly recommended you run this script on the same machine as your
-  test server (i.e., you would use "-s 127.0.0.1" or "-s localhost"). Using
-  a remote server introduces higher latency (slower web requests) and is
-  another failure point.
-""" % dict(name=NAME)
-
-    usage = usage.strip()
-    logfile = "%s.log" % NAME
-
-    op = optparse.OptionParser(usage=usage, version=DISPLAY_VERSION)
+    op = optparse.OptionParser(usage="", version="sauce_connect")
     op.add_option("-u", "--user", "--username",
                   help="Your Sauce Labs account name.")
     op.add_option("-k", "--api-key",
@@ -473,7 +446,7 @@ Performance tip:
     op.add_option("-p", "--port", metavar="PORT",
                   action="append", dest="ports", default=[],
                   help="Forward to this port on HOST. Can be specified "
-                       "multiple times. [80]")
+                       "multiple times. []")
     op.add_option("-d", "--domain", action="append", dest="domains",
             help="Repeat for each domain you want to forward requests for. "
                  "Example: -d example.test -d '*.example.test'")
@@ -522,37 +495,6 @@ Performance tip:
 
     (options, args) = op.parse_args(arglist)
 
-    # check ports are numbers
-    try:
-        map(int, options.ports)
-        map(int, options.tunnel_ports)
-    except ValueError:
-        sys.stderr.write("Error: Ports must be integers\n\n")
-        print "Help with options -t and -p:"
-        print "  All ports must be integers. You used:"
-        if options.ports:
-            print "    -p", " -p ".join(options.ports)
-        if options.tunnel_ports:
-            print "    -t", " -t ".join(options.tunnel_ports)
-        raise SystemExit(1)
-
-    # default to 80 and default to matching host ports with tunnel ports
-    if not options.ports and not options.tunnel_ports:
-        options.ports = ["80"]
-    if options.ports and not options.tunnel_ports:
-        options.tunnel_ports = options.ports[:]
-
-    if len(options.ports) != len(options.tunnel_ports):
-        sys.stderr.write("Error: Options -t and -p need to be paired\n\n")
-        print "Help with options -t and -p:"
-        print "  When forwarding multiple ports, you must pair the tunnel port"
-        print "  to forward with the host port to forward to."
-        print ""
-        print "Example option usage:"
-        print "  To have your test's requests to 80 and 443 go to your test"
-        print "  server on ports 5000 and 5001: -t 80 -p 5000 -t 443 -p 5001"
-        raise SystemExit(1)
-
     # check for required options without defaults
     for opt in ["user", "api_key", "host", "domains"]:
         if not hasattr(options, opt) or not getattr(options, opt):
@@ -583,8 +525,8 @@ def run(options,
     logger.info("/ Starting \\")
     logger.info('Please wait for "You may start your tests" to start your tests.')
 
-    metadata = dict(ScriptName=NAME,
-                    ScriptRelease=RELEASE,
+    metadata = dict(ScriptName='sauce_connect',
+                    ScriptRelease=int(build),
                     Release=release,
                     Build=build,
                     Platform=platform.platform(),

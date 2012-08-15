@@ -88,11 +88,28 @@ class KgpTunnel extends Tunnel {
     val stream = if (200 <= code && code < 300) {
       conn.getInputStream
     } else {
+      log.error("unexpected response code for REST request " + path + ": " + code)
       conn.getErrorStream
     }
-    val result = Source.fromInputStream(stream).mkString("")
-    stream.close()
-    return Json.decode(result)
+
+    if (stream == null) {
+      log.error("null stream!")
+      return Map("error" -> "no response body from server",
+                 "code" -> code)
+    }
+
+    try {
+      val result = Source.fromInputStream(stream).mkString("")
+      stream.close()
+      return Json.decode(result)
+    } catch {
+      case e:NullPointerException => {
+        System.err.println("Error reading response from Sauce OnDemand REST API: ")
+        e.printStackTrace()
+        return Map("error" -> "error reading response body from server",
+                   "code" -> code)
+      }
+    }
   }
 
   def reportConnectedStatus() = {
@@ -108,24 +125,32 @@ class KgpTunnel extends Tunnel {
   }
 
   def checkTunnelStatus(): Boolean = {
-    try {
-      val path = "/tunnels/%s" format (getTunnelSetting("id"))
-      val result = restCall("GET", path, null)
-      if (!result.contains("status")) {
-        log.error("no status field in tunnel GET result: " + result)
-        return false
-      }
-      if (result("status") != "running") {
-        log.info("status check found tunnel in " + result("status"))
-        return false
-      }
+    val path = "/tunnels/%s" format (getTunnelSetting("id"))
+    val result = try {
+      restCall("GET", path, null)
     } catch {
       case e:IOException => {
         System.err.println("Error connecting to Sauce OnDemand REST API: ")
         e.printStackTrace()
       }
+      // we don't know the status one way or the other; try to keep going
+      return true
     }
-    return true
+
+    if (!result.contains("status")) {
+      log.error("no status field in tunnel GET result: " + result)
+      // we don't know the status one way or the other; try to keep going
+      return true
+    }
+
+    if (result("status") == "running") {
+      // we got the status and it's okay
+      return true
+    }
+
+    // we got the status and it's not okay
+    log.info("status check found tunnel in " + result("status"))
+    return false
   }
 
   def reportError(info: String): Boolean = {
@@ -155,7 +180,7 @@ class KgpTunnel extends Tunnel {
       this.readyfile.deleteOnExit()
     }
 
-    val forwarded_health = new HealthChecker(this.host, ports)
+    val forwarded_health = new HealthChecker(this.host, this.ports)
     forwarded_health.check()
 
     log.info("Starting connection to tunnel host...")
@@ -166,18 +191,33 @@ class KgpTunnel extends Tunnel {
     val health_check_interval = SauceConnect.getHealthCheckInterval
     val report_interval = 60
     var last_report = 0L
-    try {
-      while (true) {
-        val start = System.currentTimeMillis()
-
+    while (true) {
+      try {
         if (!checkTunnelStatus()) {
           log.warn("Remote tunnel VM no longer running, shutting down")
           stop()
           return
         }
+      } catch {
+        case e:Exception => {
+          System.err.println("Error checking tunnel status: ")
+          e.printStackTrace()
+          throw e
+        }
+      }
 
+      try {
         forwarded_health.check()
+      } catch {
+        case e:Exception => {
+          System.err.println("Error checking internal proxy status: ")
+          e.printStackTrace()
+          throw e
+        }
+      }
 
+      val start = System.currentTimeMillis()
+      try {
         if (start - last_report > report_interval) {
           if (checkProxy()) {
             reportConnectedStatus()
@@ -186,14 +226,24 @@ class KgpTunnel extends Tunnel {
           }
           last_report = start
         }
+      } catch {
+        case e:Exception => {
+          System.err.println("Error checking or reporting end-to-end connection: ")
+          e.printStackTrace()
+          throw e
+        }
+      }
+
+      try {
         if ((health_check_interval - (System.currentTimeMillis()-start)) > 0) {
           Thread.sleep(health_check_interval - (System.currentTimeMillis()-start))
         }
-      }
-    } catch {
-      case e:Exception => {
-        System.err.println("Error checking tunnel status: " + e.getMessage)
-        throw e;
+      } catch {
+        case e:Exception => {
+          System.err.println("Error waiting for tunnel check: ")
+          e.printStackTrace()
+          throw e
+        }
       }
     }
   }
@@ -221,7 +271,7 @@ class KgpTunnel extends Tunnel {
 
       try {
         sauceProxy = new SauceProxy(se_port.toInt, "localhost",
-                                   proxyServer.getPort)
+                                    proxyServer.getPort)
         sauceProxy.start()
       } catch {
         case e:Exception => {
@@ -231,13 +281,15 @@ class KgpTunnel extends Tunnel {
       log.info("Selenium HTTP proxy listening on port " + se_port)
     }
 
-    //client.authenticateWithPassword(user, password)
-    for (index <- 0 until ports.length) {
-      val remotePort = tunnel_ports(index).toInt
-      val localPort = ports(index).toInt
-      //client.requestRemotePortForwarding("0.0.0.0", remotePort, this.host,
-      //                                             localPort)
-    }
+    // Maybe it would be nice to tell KGP where to forward connections
+    // from different ports, like ssh does, instead of having it be a
+    // single-port setup. This was the SSH code:
+    //for (index <- 0 until this.ports.length) {
+    //  val remotePort = this.tunnel_ports(index).toInt
+    //  val localPort = this.ports(index).toInt
+    //  client.requestRemotePortForwarding("0.0.0.0", remotePort, this.host,
+    //                                     localPort)
+    //}
     client.waitForConnection()
     log.info("Connected! You may start your tests.")
   }

@@ -89,7 +89,7 @@ object SauceConnect {
   private val log = LogFactory.getLog(this.getClass)
   var _interpreter:PythonInterpreter = null
 
-  val BUILD = 27
+  val BUILD = 29
   val RELEASE = 18
   var commandLineArguments:CommandLine = null
   var standaloneMode:Boolean = true
@@ -230,7 +230,7 @@ object SauceConnect {
     args.add(new PyString(domain))
     args.add(new PyString("-s"))
     args.add(new PyString("127.0.0.1"))
-    args.add(new PyString("-p"))
+    args.add(new PyString("-t"))
     args.add(new PyString("80"))
     args.add(new PyString("--ssh-port"))
     args.add(new PyString("443"))
@@ -316,6 +316,7 @@ object SauceConnect {
     SauceConnect.interpreter.set(
       "arglist",
       generateArgsForSauceConnect(domain, commandLineArguments))
+    SauceConnect.interpreter.exec("options = sauce_connect.get_options(arglist)")
   }
 
   def startProxy() {
@@ -346,7 +347,6 @@ object SauceConnect {
   }
 
   def setupLogging() {
-    SauceConnect.interpreter.exec("options = sauce_connect.get_options(arglist)")
     SauceConnect.interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)")
     PythonLogHandler.install()
   }
