@@ -417,7 +417,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
         code = http.getResponseCode()
       } catch {
         case e:SSLHandshakeException => {
-          throw new RuntimeException("Couldn't establish SSL handshake.  Try using trustAllSSLCertificates.\n" + e.getLocalizedMessage(), e)
+          throw new RuntimeException("Couldn't establish SSL handshake.\n" + e.getLocalizedMessage(), e)
         }
       }
       response.setStatus(code)
