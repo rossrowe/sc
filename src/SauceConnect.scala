@@ -89,8 +89,8 @@ object SauceConnect {
   private val log = LogFactory.getLog(this.getClass)
   var _interpreter:PythonInterpreter = null
 
-  val BUILD = 29
-  val RELEASE = 18
+  val BUILD = 30
+  val RELEASE = 19
   var commandLineArguments:CommandLine = null
   var standaloneMode:Boolean = true
   var restURL = ""
