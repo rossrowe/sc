@@ -149,7 +149,7 @@ object SauceConnect {
     fastFail.setArgName("REGEXPS")
     options.addOption(fastFail)
     val squidOpts = new Option("S", "squid-opts", true, null)
-    fastFail.setArgName("OPTIONS")
+    squidOpts.setArgName("SQUID-OPTIONS")
     options.addOption(squidOpts)
     try {
       val parser = new PosixParser()
