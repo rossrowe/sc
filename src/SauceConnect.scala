@@ -120,35 +120,28 @@ object SauceConnect {
 
   def storeCommandLineArgs(args: Array[String]) {
     val options = new Options()
-    val readyfile = new Option("f", "readyfile", true, "Ready file that will be touched when tunnel is ready")
+    val readyfile = new Option("f", "readyfile", true, "Ready file that will be touched when tunnel is ready.")
     readyfile.setArgName("FILE")
     options.addOption(readyfile)
+
     options.addOption("x", "rest-url", true, "Advanced feature: Connect to Sauce OnDemand at alternative URL." +
-                      " Use only if directed to by Sauce Labs support.")
-
+                                             " Use only if directed to do so by Sauce Labs support.")
     OptionBuilder.withArgName("HOSTNAME")
-    OptionBuilder.hasArg
-    OptionBuilder.withDescription("Set 'proxy-host' field on jobs to the same " +
-                                  "value to use this Sauce Connect connection. " +
-                                  "Defaults to sauce-connect.proxy.")
-    OptionBuilder.withLongOpt("proxy-host")
-    options.addOption(OptionBuilder.create("p"))
-
-    OptionBuilder.withLongOpt("dont-update-proxy-host")
-    OptionBuilder.withDescription("Don't update default proxy-host value for " +
-                                  "this account while tunnel is running.")
-    options.addOption(OptionBuilder.create())
-
-    options.addOption("h", "help", false, "Display this help text")
-    options.addOption("v", "version", false, "Print the version and exit")
-    options.addOption("d", "debug", false, "Enable verbose debugging")
-    val sePortOpt = new Option("P", "se-port", true, null)
+    options.addOption("h", "help", false, "Display this help text.")
+    options.addOption("v", "version", false, "Print the version and exit.")
+    options.addOption("d", "debug", false, "Enable verbose debugging.")
+    val sePortOpt = new Option("P", "se-port", true, "Port in which Sauce Connect's Selenium relay will listen for requests." +
+                                                     " Selenium commands reaching Connect on this port will be relayed to Sauce Labs" +
+                                                     " securely and reliably through Connect's tunnel.")
     sePortOpt.setArgName("PORT")
     options.addOption(sePortOpt)
-    val fastFail = new Option("F", "fast-fail-regexps", true, null)
+    val fastFail = new Option("F", "fast-fail-regexps", true, "Comma-separated list of regular expressions." +
+                                                              " Requests matching one of these will get dropped instantly and will not" +
+                                                              " go through the tunnel.")
     fastFail.setArgName("REGEXPS")
     options.addOption(fastFail)
-    val squidOpts = new Option("S", "squid-opts", true, null)
+    val squidOpts = new Option("S", "squid-opts", true, "Configuration used for the Squid reverse proxy in our end." +
+                                                        " Use only if directed to do so by Sauce Labs support.")
     squidOpts.setArgName("SQUID-OPTIONS")
     options.addOption(squidOpts)
     try {
@@ -182,7 +175,7 @@ object SauceConnect {
       apikey = commandLineArguments.getArgs()(1)
       if (apikey.length < 36) {
         throw new ParseException("""|Invalid API_KEY provided. Please use your Access Key to start Sauce Connect, not your password.
-                                    |"You can find your Access Key in your account page: https://saucelabs.com/account""".stripMargin)
+                                    |You can find your Access Key in your account page: https://saucelabs.com/account""".stripMargin)
       }
     } catch {
       case e:ParseException => {
@@ -314,9 +307,6 @@ object SauceConnect {
   def setupArgumentList() {
     var domain = "sauce-connect.proxy"
 
-    if (commandLineArguments.hasOption("proxy-host")) {
-      domain = commandLineArguments.getOptionValue("proxy-host")
-    }
     SauceConnect.interpreter.set(
       "arglist",
       generateArgsForSauceConnect(domain, commandLineArguments))
