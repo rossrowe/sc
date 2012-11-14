@@ -98,7 +98,10 @@ class TunnelMachine(object):
 
     _host_search = re.compile("//([^/]+)").search
 
-    def __init__(self, rest_url, user, password, domains, ssh_port, boost_mode, use_ssh, fast_fail_regexps, squid_opts, metadata=None):
+    def __init__(self, rest_url, user, password,
+                 domains, ssh_port, boost_mode, use_ssh,
+                 fast_fail_regexps, direct_domains,
+                 squid_opts, metadata=None):
         self.user = user
         self.password = password
         self.domains = set(domains)
@@ -106,6 +109,7 @@ class TunnelMachine(object):
         self.boost_mode = boost_mode
         self.use_ssh = use_ssh
         self.fast_fail_regexps = fast_fail_regexps
+        self.direct_domains = direct_domains
         self.squid_opts = squid_opts
         self.metadata = metadata or dict()
 
@@ -215,6 +219,7 @@ class TunnelMachine(object):
                                use_caching_proxy=self.boost_mode,
                                use_kgp=not self.use_ssh,
                                fast_fail_regexps=self.fast_fail_regexps.split(','),
+                               direct_domains=self.direct_domains.split(','),
                                squid_config=self.squid_opts.split(',')))
         logger.info("%s" % data)
         req = urllib2.Request(url=self.base_url, headers=headers, data=data)
@@ -482,6 +487,8 @@ def get_options(arglist=sys.argv[1:]):
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--fast-fail-regexps", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--direct-domains", default="", type="str",
+                  help=optparse.SUPPRESS_HELP)
     og.add_option("--squid-opts", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
     op.add_option_group(og)
@@ -557,6 +564,7 @@ def run(options,
                                    options.ssh_port, bool(options.boost_mode),
                                    bool(options.ssh),
                                    options.fast_fail_regexps,
+                                   options.direct_domains,
                                    options.squid_opts,
                                    metadata)
         except TunnelMachineError, e:

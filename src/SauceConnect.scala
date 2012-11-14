@@ -140,6 +140,11 @@ object SauceConnect {
                                                               " go through the tunnel.")
     fastFail.setArgName("REGEXPS")
     options.addOption(fastFail)
+    val directDomains = new Option("D", "direct-domains", true, "Comma-separated list of domains." +
+                                                            " Requests whose host matches one of these will be relayed directly through" +
+                                                            " the internet, instead of through the tunnel.")
+    directDomains.setArgName("DOMAIN1,DOMAIN2")
+    options.addOption(directDomains)
     val squidOpts = new Option("S", "squid-opts", true, "Configuration used for the Squid reverse proxy in our end." +
                                                         " Use only if directed to do so by Sauce Labs support.")
     squidOpts.setArgName("SQUID-OPTIONS")
@@ -244,6 +249,10 @@ object SauceConnect {
       if (options.hasOption('F')) {
         args.add(new PyString("--fast-fail-regexps"))
         args.add(new PyString(options.getOptionValue('F')))
+      }
+      if (options.hasOption('D')) {
+        args.add(new PyString("--direct-domains"))
+        args.add(new PyString(options.getOptionValue('D')))
       }
       args.add(new PyString("--squid-opts"))
       if (options.hasOption('S')) {
