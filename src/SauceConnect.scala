@@ -180,6 +180,10 @@ object SauceConnect {
       restURL = commandLineArguments.getOptionValue("rest-url", "https://saucelabs.com/rest/v1")
       username = commandLineArguments.getArgs()(0)
       apikey = commandLineArguments.getArgs()(1)
+      if (apikey.length < 36) {
+        throw new ParseException("""|Invalid API_KEY provided. Please use your Access Key to start Sauce Connect, not your password.
+                                    |"You can find your Access Key in your account page: https://saucelabs.com/account""".stripMargin)
+      }
     } catch {
       case e:ParseException => {
         System.err.println(e.getMessage)
