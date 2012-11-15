@@ -145,6 +145,8 @@ object SauceConnect {
                                                             " the internet, instead of through the tunnel.")
     directDomains.setArgName("DOMAIN1,DOMAIN2")
     options.addOption(directDomains)
+    val sharedTunnel = new Option("s", "shared-tunnel", false, "Let sub-accounts of the tunnel owner use the tunnel if requested.")
+    options.addOption(sharedTunnel)
     val squidOpts = new Option("S", "squid-opts", true, "Configuration used for the Squid reverse proxy in our end." +
                                                         " Use only if directed to do so by Sauce Labs support.")
     squidOpts.setArgName("SQUID-OPTIONS")
@@ -253,6 +255,9 @@ object SauceConnect {
       if (options.hasOption('D')) {
         args.add(new PyString("--direct-domains"))
         args.add(new PyString(options.getOptionValue('D')))
+      }
+      if (options.hasOption('s')) {
+        args.add(new PyString("--shared-tunnel"))
       }
       args.add(new PyString("--squid-opts"))
       if (options.hasOption('S')) {

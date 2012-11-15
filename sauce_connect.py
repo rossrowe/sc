@@ -100,7 +100,7 @@ class TunnelMachine(object):
 
     def __init__(self, rest_url, user, password,
                  domains, ssh_port, boost_mode, use_ssh,
-                 fast_fail_regexps, direct_domains,
+                 fast_fail_regexps, direct_domains, shared_tunnel,
                  squid_opts, metadata=None):
         self.user = user
         self.password = password
@@ -110,6 +110,7 @@ class TunnelMachine(object):
         self.use_ssh = use_ssh
         self.fast_fail_regexps = fast_fail_regexps
         self.direct_domains = direct_domains
+        self.shared_tunnel = shared_tunnel
         self.squid_opts = squid_opts
         self.metadata = metadata or dict()
 
@@ -222,6 +223,7 @@ class TunnelMachine(object):
                                                   if self.fast_fail_regexps else None),
                                direct_domains=(self.direct_domains.split(',')
                                                if self.direct_domains else None),
+                               shared_tunnel=self.shared_tunnel,
                                squid_config=(self.squid_opts.split(',')
                                              if self.squid_opts else None)))
         logger.info("%s" % data)
@@ -492,6 +494,8 @@ def get_options(arglist=sys.argv[1:]):
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--direct-domains", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--shared-tunnel", default=False, action="store_true",
+                  help=optparse.SUPPRESS_HELP)
     og.add_option("--squid-opts", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
     op.add_option_group(og)
@@ -568,6 +572,7 @@ def run(options,
                                    bool(options.ssh),
                                    options.fast_fail_regexps,
                                    options.direct_domains,
+                                   options.shared_tunnel,
                                    options.squid_opts,
                                    metadata)
         except TunnelMachineError, e:
