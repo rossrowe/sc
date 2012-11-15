@@ -138,7 +138,7 @@ object SauceConnect {
     val fastFail = new Option("F", "fast-fail-regexps", true, "Comma-separated list of regular expressions." +
                                                               " Requests matching one of these will get dropped instantly and will not" +
                                                               " go through the tunnel.")
-    fastFail.setArgName("REGEXPS")
+    fastFail.setArgName("REGEXP1,REGEXP2")
     options.addOption(fastFail)
     val directDomains = new Option("D", "direct-domains", true, "Comma-separated list of domains." +
                                                             " Requests whose host matches one of these will be relayed directly through" +
@@ -244,7 +244,7 @@ object SauceConnect {
     if (options != null) {
       if (options.hasOption('f')) {
         args.add(new PyString("--readyfile"))
-          args.add(new PyString(options.getOptionValue('f')))
+        args.add(new PyString(options.getOptionValue('f')))
       }
       if (options.hasOption('F')) {
         args.add(new PyString("--fast-fail-regexps"))
