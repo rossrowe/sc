@@ -278,9 +278,11 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
     //log.warn(sauceProxy + " " + stats)
 
     var url: URL = null
+    var relayed : Boolean = false
     if (!sauceProxy.targetHost.isEmpty && sauceProxy.targetPort > 0) {
       url = new URL("http", sauceProxy.targetHost, sauceProxy.targetPort,
                     request.getUri.toString)
+      relayed = true
     } else {
       try {
         url = new URL(request.getUri.toString)
@@ -451,6 +453,9 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
     var v = connection.getHeaderField(h)
     while (hdr != null || v != null) {
       if (hdr != null && v != null && !_DontProxyHeaders.contains(hdr) && (_chained || !_ProxyAuthHeaders.contains(hdr))) {
+        if (hdr == HttpHeaders.LOCATION && relayed == true && (code == 301 || code == 302) && v.indexOf("localhost") > 0) {
+          v = v.substring(v.indexOf("/wd/hub/session"))
+        }
         response.addHeader(hdr, v)
         if (log.isDebugEnabled) {
           log.debug("RESP " + Counter.n + ": " + hdr + ": " + v)
@@ -492,7 +497,11 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       }
     }
     val duration = System.currentTimeMillis - startMs
-    log.info(request.getMethod + " " + url + " -> " + code + " (" + duration + "ms)")
+    var prefix : String = ""
+    if (relayed) {
+      prefix = "Selenium Relay - "
+    }
+    log.info(prefix + request.getMethod + " " + url + " -> " + code + " (" + duration + "ms)")
     if (log.isDebugEnabled) {
       log.debug("RESP " + Counter.n + " DONE, " + bytesCopied + " bytes")
     }
