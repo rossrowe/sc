@@ -93,8 +93,9 @@ object SauceConnect {
   val RELEASE = 21
   var commandLineArguments:CommandLine = null
   var standaloneMode:Boolean = true
-  var restURL = ""
+  var logfile = ""
   var sePort = ""
+  var restURL = ""
   var username = ""
   var apikey = ""
   var strippedArgs = new PyList()
@@ -130,6 +131,9 @@ object SauceConnect {
     options.addOption("h", "help", false, "Display this help text.")
     options.addOption("v", "version", false, "Print the version and exit.")
     options.addOption("d", "debug", false, "Enable verbose debugging.")
+    val logfileOpt = new Option("l", "logfile", true, null)
+    logfileOpt.setArgName("LOGFILE")
+    options.addOption(logfileOpt)
     val sePortOpt = new Option("P", "se-port", true, "Port in which Sauce Connect's Selenium relay will listen for requests." +
                                                      " Selenium commands reaching Connect on this port will be relayed to Sauce Labs" +
                                                      " securely and reliably through Connect's tunnel.")
@@ -176,6 +180,7 @@ object SauceConnect {
 
       commandLineArguments = result
 
+      logfile = commandLineArguments.getOptionValue("logfile", "sauce_connect.log")
       sePort = commandLineArguments.getOptionValue("se-port", "4445")
       restURL = commandLineArguments.getOptionValue("rest-url", "https://saucelabs.com/rest/v1")
       username = commandLineArguments.getArgs()(0)
@@ -243,6 +248,8 @@ object SauceConnect {
     args.add(new PyString(restURL))
     args.add(new PyString("--se-port"))
     args.add(new PyString(sePort))
+    args.add(new PyString("--logfile"))
+    args.add(new PyString(logfile))
     if (options != null) {
       if (options.hasOption('f')) {
         args.add(new PyString("--readyfile"))
