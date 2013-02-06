@@ -30,6 +30,7 @@ class SauceProxy(port: Int, val targetHost: String, val targetPort: Int) {
   connector.setMaxIdleTime(300000)
   connector.setThreadPool(new QueuedThreadPool(256))
   connector.setStatsOn(true)
+  connector.setRequestHeaderSize(65536)
 
   server.addConnector(connector)
 
