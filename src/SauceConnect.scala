@@ -89,8 +89,8 @@ object SauceConnect {
   private val log = LogFactory.getLog(this.getClass)
   var _interpreter:PythonInterpreter = null
 
-  val BUILD = 33
-  val RELEASE = 22
+  val BUILD = 35
+  val RELEASE = 24
   var commandLineArguments:CommandLine = null
   var standaloneMode:Boolean = true
   var logfile = ""
@@ -103,6 +103,7 @@ object SauceConnect {
   var sauceProxy:SauceProxy = null
 
   def main(args: Array[String]) {
+    System.setProperty("sun.net.http.allowRestrictedHeaders", "true");
     for (sig <- Array("ABRT", "BREAK", "HUP", "INT", "QUIT", "TERM")) {
       try {
         SignalManager(sig) += log.warn("received SIG" + sig)
