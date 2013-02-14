@@ -166,12 +166,14 @@ object SauceConnect {
           System.exit(0)
         }
       }
+
+      println("Sauce Connect 3.0-r" + RELEASE + ", build " + BUILD)
       if (result.hasOption("version")) {
-        println("Version: Sauce Connect 3.0-r" + RELEASE)
         if (standaloneMode) {
           System.exit(0)
         }
       }
+
       if (result.getArgs.length == 0) {
         throw new ParseException("Missing required arguments USERNAME, API_KEY")
       }
