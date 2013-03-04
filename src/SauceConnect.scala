@@ -152,6 +152,10 @@ object SauceConnect {
     options.addOption(directDomains)
     val sharedTunnel = new Option("s", "shared-tunnel", false, "Let sub-accounts of the tunnel owner use the tunnel if requested.")
     options.addOption(sharedTunnel)
+    val tunnelIdentifier = new Option("i", "tunnel-identifier", true, "Don't automatically assign jobs to this tunnel. Jobs will use it only" +
+                                                                      " by explicitly providing the right identifier.")
+    tunnelIdentifier.setArgName("TUNNELIDENTIFIER")
+    options.addOption(tunnelIdentifier)
     val squidOpts = new Option("S", "squid-opts", true, "Configuration used for the Squid reverse proxy in our end." +
                                                         " Use only if directed to do so by Sauce Labs support.")
     squidOpts.setArgName("SQUID-OPTIONS")
@@ -238,8 +242,6 @@ object SauceConnect {
     args.add(new PyString(username))
     args.add(new PyString("-k"))
     args.add(new PyString(apikey))
-    args.add(new PyString("-d"))
-    args.add(new PyString(domain))
     args.add(new PyString("-s"))
     args.add(new PyString("127.0.0.1"))
     args.add(new PyString("-t"))
@@ -254,6 +256,10 @@ object SauceConnect {
     args.add(new PyString("--logfile"))
     args.add(new PyString(logfile))
     if (options != null) {
+      if (!options.hasOption('i')) {
+        args.add(new PyString("-d"))
+        args.add(new PyString(domain))
+      }
       if (options.hasOption('f')) {
         args.add(new PyString("--readyfile"))
         args.add(new PyString(options.getOptionValue('f')))
@@ -268,6 +274,10 @@ object SauceConnect {
       }
       if (options.hasOption('s')) {
         args.add(new PyString("--shared-tunnel"))
+      }
+      if (options.hasOption('i')) {
+        args.add(new PyString("--tunnel-identifier"))
+        args.add(new PyString(options.getOptionValue('i')))
       }
       args.add(new PyString("--squid-opts"))
       if (options.hasOption('S')) {

@@ -24,26 +24,28 @@ except ImportError:
     import urllib2
 
 try:
-    import json
+    import com.xhaus.jyson.JysonCodec as json
 except ImportError:
     try:
-        import simplejson as json  # Python 2.5 dependency
+        import json
     except ImportError:
-        import com.xhaus.jyson.JysonCodec as json
+        import simplejson as json  # Python 2.5 dependency
 
 try:
     from java.lang import InterruptedException
 except ImportError:
-    class InterruptedException(Exception): pass
+    class InterruptedException(Exception):
+        pass
 
 try:
-  # Apparently native Java exceptions are being raised with a different
-  # baseclass other than the standard Python 'Exception' baseclass. This
-  # means catch-all except blocks wlil not work unless they except for both
-  # Exception *and* JavaException
-  from java.lang import Exception as JavaException
+    # Apparently native Java exceptions are being raised with a different
+    # baseclass other than the standard Python 'Exception' baseclass. This
+    # means catch-all except blocks wlil not work unless they except for both
+    # Exception *and* JavaException
+    from java.lang import Exception as JavaException
 except ImportError:
-  class JavaException(Exception): pass
+    class JavaException(Exception):
+        pass
 
 RETRY_PROVISION_MAX = 4
 RETRY_BOOT_MAX = 4
@@ -101,16 +103,17 @@ class TunnelMachine(object):
     def __init__(self, rest_url, user, password,
                  domains, ssh_port, boost_mode, use_ssh,
                  fast_fail_regexps, direct_domains, shared_tunnel,
-                 squid_opts, metadata=None):
+                 tunnel_identifier, squid_opts, metadata=None):
         self.user = user
         self.password = password
-        self.domains = set(domains)
+        self.domains = set(domains) if domains else set()
         self.ssh_port = ssh_port
         self.boost_mode = boost_mode
         self.use_ssh = use_ssh
         self.fast_fail_regexps = fast_fail_regexps
         self.direct_domains = direct_domains
         self.shared_tunnel = shared_tunnel
+        self.tunnel_identifier = tunnel_identifier
         self.squid_opts = squid_opts
         self.metadata = metadata or dict()
 
@@ -202,7 +205,8 @@ class TunnelMachine(object):
                     doc = self._get_doc(DeleteRequest(url=url))
                     if (not doc.get('result') or
                         not doc.get('id') == tunnel_id):
-                        logger.warning("Old tunnel remote VM failed to shut down.  Status: %s", doc)
+                        logger.warning("Old tunnel remote VM failed to shut down."
+                                       " Status: %s", doc)
                         continue
                     doc = self._get_doc(url)
                     while doc.get('status') not in ["halting", "terminated"]:
@@ -224,6 +228,7 @@ class TunnelMachine(object):
                                direct_domains=(self.direct_domains.split(',')
                                                if self.direct_domains else None),
                                shared_tunnel=self.shared_tunnel,
+                               tunnel_identifier=self.tunnel_identifier,
                                squid_config=(self.squid_opts.split(',')
                                              if self.squid_opts else None)))
         logger.info("%s" % data)
@@ -250,7 +255,9 @@ class TunnelMachine(object):
                 break
             if status in ["halting", "terminated"]:
                 if doc.get('user_shut_down'):
-                    raise ShutdownRequestedError("Tunnel shut down by user (or another Sauce Connect process), quitting")
+                    raise ShutdownRequestedError("Tunnel shut down by userJ"
+                                                 " (or another Sauce Connect"
+                                                 " process), quitting")
                 else:
                     raise TunnelMachineBootError("Tunnel remote VM was shut down")
             if status != previous_status:
@@ -361,7 +368,8 @@ class HealthChecker(object):
                                 "connect)" % result)
 
                 if self.last_tcp_ping[port] is None:
-                    logger.info("Succesfully connected to local server %s:%s in %dms" % result)
+                    logger.info("Succesfully connected to local server %s:%s in %dms"
+                                % result)
 
                 self.last_tcp_ping[port] = ping_time
                 continue
@@ -458,20 +466,20 @@ def get_options(arglist=sys.argv[1:]):
                   help="Forward to this port on HOST. Can be specified "
                        "multiple times. []")
     op.add_option("-d", "--domain", action="append", dest="domains",
-            help="Repeat for each domain you want to forward requests for. "
-                 "Example: -d example.test -d '*.example.test'")
+                  help="Repeat for each domain you want to forward requests for. "
+                  "Example: -d example.test -d '*.example.test'")
     op.add_option("-q", "--quiet", action="store_true", default=False,
                   help="Minimize standard output (see %s)" % logfile)
 
     og = optparse.OptionGroup(op, "Advanced options")
     og.add_option("-t", "--tunnel-port", metavar="TUNNEL_PORT",
-        action="append", dest="tunnel_ports", default=[],
-        help="The port your tests expect to hit when they run."
-             " By default, we use the same ports as the HOST."
-             " If you know for sure _all_ your tests use something like"
-             " http://site.test:8080/ then set this 8080.")
+                  action="append", dest="tunnel_ports", default=[],
+                  help="The port your tests expect to hit when they run."
+                  " By default, we use the same ports as the HOST."
+                  " If you know for sure _all_ your tests use something like"
+                  " http://site.test:8080/ then set this 8080.")
     og.add_option("--logfile", default=logfile,
-          help="Path of the logfile to write to. [%default]")
+                  help="Path of the logfile to write to. [%default]")
     og.add_option("--readyfile",
                   help="Path of the file to drop when the tunnel is ready "
                        "for tests to run. By default, no file is dropped.")
@@ -496,6 +504,8 @@ def get_options(arglist=sys.argv[1:]):
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--shared-tunnel", default=False, action="store_true",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--tunnel-identifier", default="", type="str",
+                  help=optparse.SUPPRESS_HELP)
     og.add_option("--squid-opts", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
     op.add_option_group(og)
@@ -510,7 +520,12 @@ def get_options(arglist=sys.argv[1:]):
     (options, args) = op.parse_args(arglist)
 
     # check for required options without defaults
-    for opt in ["user", "api_key", "host", "domains"]:
+    if not options.domains and not options.tunnel_identifier:
+        sys.stderr.write("Error: Missing required argument(s):"
+                         " domains or identifier\n\n")
+        op.print_help()
+        raise SystemExit(1)
+    for opt in ["user", "api_key", "host"]:
         if not hasattr(options, opt) or not getattr(options, opt):
             sys.stderr.write("Error: Missing required argument(s)\n\n")
             op.print_help()
@@ -573,6 +588,7 @@ def run(options,
                                    options.fast_fail_regexps,
                                    options.direct_domains,
                                    options.shared_tunnel,
+                                   options.tunnel_identifier,
                                    options.squid_opts,
                                    metadata)
         except TunnelMachineError, e:
