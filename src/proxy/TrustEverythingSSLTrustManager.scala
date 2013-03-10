@@ -58,7 +58,7 @@ object TrustEverythingSSLTrustManager {
 /** Provides a mechanism to trust all SSL certificates */
 class TrustEverythingSSLTrustManager extends X509TrustManager {
 
-  def getAcceptedIssuers: Array[java.security.cert.X509Certificate] = null
+  def getAcceptedIssuers: Array[java.security.cert.X509Certificate] = Array.empty[java.security.cert.X509Certificate]
 
   def checkClientTrusted(certs: Array[java.security.cert.X509Certificate],
                          authType: String) = {}
