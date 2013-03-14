@@ -189,14 +189,18 @@ class TunnelMachine(object):
         # Shutdown any tunnel using a requested domain
         kill_list = set()
         for doc in self._get_doc(self.base_url + "?full=1"):
-            print doc
-            if not doc.get('domain_names'):
-                continue
-            if set(doc['domain_names']) & self.domains:
+            if ((doc.get('domain_names') and
+                 set(doc['domain_names']) & self.domains) or
+                (doc.get('tunnel_identifier') and
+                 doc['tunnel_identifier'] == self.tunnel_identifier)):
                 kill_list.add(doc['id'])
         if kill_list:
-            logger.info(
-                "Shutting down other tunnel remote VMs using requested domains")
+            if self.domains:
+                logger.info("Shutting down already running tunnels without any"
+                            " identifiers")
+            elif self.tunnel_identifier:
+                logger.info("Shutting down already running tunnels using the"
+                            " same identifier")
             for tunnel_id in kill_list:
                 for attempt in xrange(1, 4):  # try a few times, then bail
                     logger.debug(
