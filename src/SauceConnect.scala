@@ -98,6 +98,7 @@ object SauceConnect {
   var restURL = ""
   var username = ""
   var apikey = ""
+  var proxyConf = new Array[String](2)
   var strippedArgs = new PyList()
   var tunnel:Tunnel = null
   var sauceProxy:SauceProxy = null
@@ -112,6 +113,13 @@ object SauceConnect {
       }
     }
     storeCommandLineArgs(args)
+    if (proxyConf(0) != null && proxyConf(1) != null) {
+      System.setProperty("http.proxyHost", proxyConf(0))
+      System.setProperty("https.proxyHost", proxyConf(0))
+      System.setProperty("http.proxyPort", proxyConf(1))
+      System.setProperty("https.proxyPort", proxyConf(1))
+      System.setProperty("http.nonProxyHosts", "localhost|saucelabs.com")
+    }
     for (s <- args) {
       strippedArgs.add(new PyString(s))
     }
@@ -135,6 +143,10 @@ object SauceConnect {
     val logfileOpt = new Option("l", "logfile", true, null)
     logfileOpt.setArgName("LOGFILE")
     options.addOption(logfileOpt)
+    val proxyOpt = new Option("p", "proxy", true, "Proxy host and port that Sauce Connect should use to send connections from browsers" +
+                                                  " in the Sauce Labs cloud to be able to access the AUT.")
+    proxyOpt.setArgName("PROXYHOST:PROXYPORT")
+    options.addOption(proxyOpt)
     val sePortOpt = new Option("P", "se-port", true, "Port in which Sauce Connect's Selenium relay will listen for requests." +
                                                      " Selenium commands reaching Connect on this port will be relayed to Sauce Labs" +
                                                      " securely and reliably through Connect's tunnel.")
@@ -195,6 +207,10 @@ object SauceConnect {
       if (apikey.length < 36) {
         throw new ParseException("""|Invalid API_KEY provided. Please use your Access Key to start Sauce Connect, not your password.
                                     |You can find your Access Key in your account page: https://saucelabs.com/account""".stripMargin)
+      }
+      val proxyString : String = commandLineArguments.getOptionValue("proxy", "")
+      if (proxyString != "") {
+        proxyConf = proxyString.split(":")
       }
     } catch {
       case e:ParseException => {
