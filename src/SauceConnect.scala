@@ -134,7 +134,7 @@ object SauceConnect {
     readyfile.setArgName("FILE")
     options.addOption(readyfile)
 
-    options.addOption("x", "rest-url", true, "Advanced feature: Connect to Sauce OnDemand at alternative URL." +
+    options.addOption("x", "rest-url", true, "Advanced feature: Connect to Sauce REST API at alternative URL." +
                                              " Use only if directed to do so by Sauce Labs support.")
     OptionBuilder.withArgName("HOSTNAME")
     options.addOption("h", "help", false, "Display this help text.")
