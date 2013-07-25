@@ -16,7 +16,7 @@ object TunnelClient {
     val port = args(1).toInt
     val forwardPort = args(2).toInt
 
-    val client = new KgpClient(host, port, forwardPort, "{\"username\": \"sah\", \"access_key\": \"1196e57a-b7b6-4290-9bf7-9424b9ebc0d0\"}")
+    val client = new KgpClient(host, port, forwardPort, "{\"username\": \"\", \"access_key\": \"\"}")
     client.start()
     client.connect()
     val proxyServer = new ProxyServer(client, 4445)

@@ -307,7 +307,12 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
         }
       }
     }
+    var prefix : String = ""
+    if (relayed) {
+      prefix = "Selenium Relay - "
+    }
 
+    log.info(prefix + "Request started: " + request.getMethod + " " + url)
     if (url.toString.contains("squid-cache.org")) {
       SauceConnect.reportError("Proxying suspicious request for " + url + "\n" +
                                stats)
@@ -497,11 +502,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       }
     }
     val duration = System.currentTimeMillis - startMs
-    var prefix : String = ""
-    if (relayed) {
-      prefix = "Selenium Relay - "
-    }
-    log.info(prefix + request.getMethod + " " + url + " -> " + code + " (" + duration + "ms)")
+    log.info(prefix + request.getMethod + " " + url + " -> " + code + " (" + duration + "ms, " + bytesCopied + " bytes)")
     if (log.isDebugEnabled) {
       log.debug("RESP " + Counter.n + " DONE, " + bytesCopied + " bytes")
     }

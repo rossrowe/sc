@@ -99,14 +99,14 @@ class SauceGUI {
                                     FormFactory.RELATED_GAP_ROWSPEC,
                                     RowSpec.decode("default:grow"))))
 
-    val lblSauceOndemandUsername = new JLabel("Sauce OnDemand Username")
+    val lblSauceOndemandUsername = new JLabel("Sauce Labs Username")
     frmSauceConnect.getContentPane().add(lblSauceOndemandUsername, "2, 2, right, default")
 
     username = new JTextField()
     frmSauceConnect.getContentPane().add(username, "4, 2, fill, default")
     username.setColumns(10)
 
-    val lblSauceOndemandApi = new JLabel("Sauce OnDemand API Key")
+    val lblSauceOndemandApi = new JLabel("Sauce Labs API Key")
     frmSauceConnect.getContentPane().add(lblSauceOndemandApi, "2, 4, right, default")
 
     apikey = new JTextField()

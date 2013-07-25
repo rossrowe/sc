@@ -104,7 +104,7 @@ class KgpTunnel extends Tunnel {
       return Json.decode(result)
     } catch {
       case e:NullPointerException => {
-        System.err.println("Error reading response from Sauce OnDemand REST API: ")
+        System.err.println("Error reading response from Sauce Labs REST API: ")
         e.printStackTrace()
         return Map("error" -> "error reading response body from server",
                    "code" -> code)
@@ -118,7 +118,7 @@ class KgpTunnel extends Tunnel {
       restCall("POST", path, null)
     } catch {
       case e:IOException => {
-        System.err.println("Error connecting to Sauce OnDemand REST API: ")
+        System.err.println("Error connecting to Sauce Labs REST API: ")
         e.printStackTrace()
       }
     }
@@ -130,7 +130,7 @@ class KgpTunnel extends Tunnel {
       restCall("GET", path, null)
     } catch {
       case e:IOException => {
-        System.err.println("Error connecting to Sauce OnDemand REST API: ")
+        System.err.println("Error connecting to Sauce Labs REST API: ")
         e.printStackTrace()
       }
       // we don't know the status one way or the other; try to keep going
@@ -166,7 +166,7 @@ class KgpTunnel extends Tunnel {
       return status
     } catch {
       case e:IOException => {
-        System.err.println("Error reporting to Sauce OnDemand REST API: ")
+        System.err.println("Error reporting to Sauce Labs REST API: ")
         e.printStackTrace()
       }
     }
