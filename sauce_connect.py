@@ -196,16 +196,19 @@ class TunnelMachine(object):
                  doc['tunnel_identifier'] == self.tunnel_identifier)):
                 kill_list.add(doc['id'])
         if kill_list:
+            logger.warning("NOTICE: Already running tunnels exist that would collide"
+                           " with this instance of Connect."
+                           " Shutting them down before starting.\n"
+                           "Read http://saucelabs.com/docs/connect#tunnel-identifier"
+                           " for more details.")
             if self.domains:
-                logger.info("Shutting down already running tunnels without any"
-                            " identifiers")
+                message = "without any identifiers"
             elif self.tunnel_identifier:
-                logger.info("Shutting down already running tunnels using the"
-                            " same identifier")
+                message = "under the same identifier"
             for tunnel_id in kill_list:
                 for attempt in xrange(1, 4):  # try a few times, then bail
-                    logger.debug(
-                        "Shutting down old tunnel remote VM: %s" % tunnel_id)
+                    logger.info("Shutting down tunnel VM: %s running %s",
+                                tunnel_id, message)
                     url = "%s/%s" % (self.base_url, tunnel_id)
                     doc = self._get_doc(DeleteRequest(url=url))
                     if (not doc.get('result') or
