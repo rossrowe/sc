@@ -103,7 +103,7 @@ class TunnelMachine(object):
     def __init__(self, rest_url, user, password,
                  domains, ssh_port, boost_mode, use_ssh,
                  fast_fail_regexps, direct_domains, shared_tunnel,
-                 tunnel_identifier, squid_opts, metadata=None):
+                 tunnel_identifier, vm_version, squid_opts, metadata=None):
         self.user = user
         self.password = password
         self.domains = set(domains) if domains else set()
@@ -114,6 +114,7 @@ class TunnelMachine(object):
         self.direct_domains = direct_domains
         self.shared_tunnel = shared_tunnel
         self.tunnel_identifier = tunnel_identifier
+        self.vm_version = vm_version
         self.squid_opts = squid_opts
         self.metadata = metadata or dict()
 
@@ -233,6 +234,7 @@ class TunnelMachine(object):
                                                if self.direct_domains else None),
                                shared_tunnel=self.shared_tunnel,
                                tunnel_identifier=self.tunnel_identifier,
+                               vm_version=self.vm_version,
                                squid_config=(self.squid_opts.split(',')
                                              if self.squid_opts else None)))
         logger.info("%s" % data)
@@ -510,6 +512,8 @@ def get_options(arglist=sys.argv[1:]):
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--tunnel-identifier", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--vm-version", default="", type="str",
+                  help=optparse.SUPPRESS_HELP)
     og.add_option("--squid-opts", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
     op.add_option_group(og)
@@ -593,6 +597,7 @@ def run(options,
                                    options.direct_domains,
                                    options.shared_tunnel,
                                    options.tunnel_identifier,
+                                   options.vm_version,
                                    options.squid_opts,
                                    metadata)
         except TunnelMachineError, e:

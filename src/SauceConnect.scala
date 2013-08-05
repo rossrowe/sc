@@ -140,34 +140,46 @@ object SauceConnect {
     options.addOption("h", "help", false, "Display this help text.")
     options.addOption("v", "version", false, "Print the version and exit.")
     options.addOption("d", "debug", false, "Enable verbose debugging.")
+
     val logfileOpt = new Option("l", "logfile", true, null)
     logfileOpt.setArgName("LOGFILE")
     options.addOption(logfileOpt)
+
     val proxyOpt = new Option("p", "proxy", true, "Proxy host and port that Sauce Connect should use to send connections from browsers" +
                                                   " in the Sauce Labs cloud to be able to access the AUT.")
     proxyOpt.setArgName("PROXYHOST:PROXYPORT")
     options.addOption(proxyOpt)
+
     val sePortOpt = new Option("P", "se-port", true, "Port in which Sauce Connect's Selenium relay will listen for requests." +
                                                      " Selenium commands reaching Connect on this port will be relayed to Sauce Labs" +
                                                      " securely and reliably through Connect's tunnel.")
     sePortOpt.setArgName("PORT")
     options.addOption(sePortOpt)
+
     val fastFail = new Option("F", "fast-fail-regexps", true, "Comma-separated list of regular expressions." +
                                                               " Requests matching one of these will get dropped instantly and will not" +
                                                               " go through the tunnel.")
     fastFail.setArgName("REGEXP1,REGEXP2")
     options.addOption(fastFail)
+
     val directDomains = new Option("D", "direct-domains", true, "Comma-separated list of domains." +
                                                             " Requests whose host matches one of these will be relayed directly through" +
                                                             " the internet, instead of through the tunnel.")
     directDomains.setArgName("DOMAIN1,DOMAIN2")
     options.addOption(directDomains)
+
     val sharedTunnel = new Option("s", "shared-tunnel", false, "Let sub-accounts of the tunnel owner use the tunnel if requested.")
     options.addOption(sharedTunnel)
+
     val tunnelIdentifier = new Option("i", "tunnel-identifier", true, "Don't automatically assign jobs to this tunnel. Jobs will use it only" +
                                                                       " by explicitly providing the right identifier.")
     tunnelIdentifier.setArgName("TUNNELIDENTIFIER")
     options.addOption(tunnelIdentifier)
+
+    val vmVersion = new Option("V", "vm-version", true, "Request a special VM version to be booted for the Sauce Labs end of the tunnel.")
+    vmVersion.setArgName("VMVERSION")
+    options.addOption(vmVersion)
+
     val squidOpts = new Option("S", "squid-opts", true, "Configuration used for the Squid reverse proxy in our end." +
                                                         " Use only if directed to do so by Sauce Labs support.")
     squidOpts.setArgName("SQUID-OPTIONS")
@@ -294,6 +306,10 @@ object SauceConnect {
       if (options.hasOption('i')) {
         args.add(new PyString("--tunnel-identifier"))
         args.add(new PyString(options.getOptionValue('i')))
+      }
+      if (options.hasOption('V')) {
+        args.add(new PyString("--vm-version"))
+        args.add(new PyString(options.getOptionValue('V')))
       }
       args.add(new PyString("--squid-opts"))
       if (options.hasOption('S')) {
