@@ -122,9 +122,11 @@ object SauceConnect {
     }
     if (proxyUser != "") {
       System.setProperty("http.proxyUser", proxyUser)
+      System.setProperty("https.proxyUser", proxyUser)
     }
     if (proxyPassword != "") {
       System.setProperty("http.proxyPassword", proxyPassword)
+      System.setProperty("https.proxyPassword", proxyPassword)
     }
     if (proxyUser != "" && proxyPassword != "") {
       Authenticator.setDefault(
