@@ -165,11 +165,11 @@ object SauceConnect {
     proxyOpt.setArgName("PROXYHOST:PROXYPORT")
     options.addOption(proxyOpt)
 
-    val proxyAuthOpt = new Option("u", "proxyUser", true, "Username required to access proxy host")
+    val proxyAuthOpt = new Option("u", "proxy-user", true, "Username required to access proxy host")
     proxyAuthOpt.setArgName("PROXYUSER")
     options.addOption(proxyAuthOpt)
 
-    val proxyPassOpt = new Option("X", "proxyPassword", true, "Password required to access proxy host")
+    val proxyPassOpt = new Option("X", "proxy-password", true, "Password required to access proxy host")
     proxyPassOpt.setArgName("PROXYPASS")
     options.addOption(proxyPassOpt)
 
@@ -247,8 +247,8 @@ object SauceConnect {
       if (proxyString != "") {
         proxyConf = proxyString.split(":")
       }
-      proxyUser = commandLineArguments.getOptionValue("proxyUser", "")
-      proxyPassword = commandLineArguments.getOptionValue("proxyPassword", "")
+      proxyUser = commandLineArguments.getOptionValue("proxy-user", "")
+      proxyPassword = commandLineArguments.getOptionValue("proxy-password", "")
     } catch {
       case e:ParseException => {
         System.err.println(e.getMessage)
