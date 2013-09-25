@@ -30,9 +30,7 @@ import org.python.util.PythonInterpreter
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLConnection
+import java.net._
 import java.util.ArrayList
 import java.lang.reflect.InvocationTargetException
 
@@ -99,6 +97,8 @@ object SauceConnect {
   var username = ""
   var apikey = ""
   var proxyConf = new Array[String](2)
+  var proxyUser = ""
+  var proxyPassword = ""
   var strippedArgs = new PyList()
   var tunnel:Tunnel = null
   var sauceProxy:SauceProxy = null
@@ -119,6 +119,21 @@ object SauceConnect {
       System.setProperty("http.proxyPort", proxyConf(1))
       System.setProperty("https.proxyPort", proxyConf(1))
       System.setProperty("http.nonProxyHosts", "localhost|saucelabs.com")
+    }
+    if (proxyUser != "") {
+      System.setProperty("http.proxyUser", proxyUser)
+      System.setProperty("https.proxyUser", proxyUser)
+    }
+    if (proxyPassword != "") {
+      System.setProperty("http.proxyPassword", proxyPassword)
+      System.setProperty("https.proxyPassword", proxyPassword)
+    }
+    if (proxyUser != "" && proxyPassword != "") {
+      Authenticator.setDefault(
+         new Authenticator {
+            override def getPasswordAuthentication = new PasswordAuthentication(proxyUser, proxyPassword.toCharArray())
+         }
+      )
     }
     for (s <- args) {
       strippedArgs.add(new PyString(s))
@@ -149,6 +164,14 @@ object SauceConnect {
                                                   " in the Sauce Labs cloud to be able to access the AUT.")
     proxyOpt.setArgName("PROXYHOST:PROXYPORT")
     options.addOption(proxyOpt)
+
+    val proxyAuthOpt = new Option("u", "proxy-user", true, "Username required to access proxy host")
+    proxyAuthOpt.setArgName("PROXYUSER")
+    options.addOption(proxyAuthOpt)
+
+    val proxyPassOpt = new Option("X", "proxy-password", true, "Password required to access proxy host")
+    proxyPassOpt.setArgName("PROXYPASS")
+    options.addOption(proxyPassOpt)
 
     val sePortOpt = new Option("P", "se-port", true, "Port in which Sauce Connect's Selenium relay will listen for requests." +
                                                      " Selenium commands reaching Connect on this port will be relayed to Sauce Labs" +
@@ -224,6 +247,8 @@ object SauceConnect {
       if (proxyString != "") {
         proxyConf = proxyString.split(":")
       }
+      proxyUser = commandLineArguments.getOptionValue("proxy-user", "")
+      proxyPassword = commandLineArguments.getOptionValue("proxy-password", "")
     } catch {
       case e:ParseException => {
         System.err.println(e.getMessage)
