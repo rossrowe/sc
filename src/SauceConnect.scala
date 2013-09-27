@@ -30,9 +30,7 @@ import org.python.util.PythonInterpreter
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLConnection
+import java.net._
 import java.util.ArrayList
 import java.lang.reflect.InvocationTargetException
 
@@ -89,8 +87,8 @@ object SauceConnect {
   private val log = LogFactory.getLog(this.getClass)
   var _interpreter:PythonInterpreter = null
 
-  val BUILD = 43
-  val RELEASE = 28
+  val BUILD = 44
+  val RELEASE = 29
   var commandLineArguments:CommandLine = null
   var standaloneMode:Boolean = true
   var logfile = ""
@@ -99,6 +97,8 @@ object SauceConnect {
   var username = ""
   var apikey = ""
   var proxyConf = new Array[String](2)
+  var proxyUser = ""
+  var proxyPassword = ""
   var strippedArgs = new PyList()
   var tunnel:Tunnel = null
   var sauceProxy:SauceProxy = null
@@ -120,6 +120,21 @@ object SauceConnect {
       System.setProperty("https.proxyPort", proxyConf(1))
       System.setProperty("http.nonProxyHosts", "localhost|saucelabs.com")
     }
+    if (proxyUser != "") {
+      System.setProperty("http.proxyUser", proxyUser)
+      System.setProperty("https.proxyUser", proxyUser)
+    }
+    if (proxyPassword != "") {
+      System.setProperty("http.proxyPassword", proxyPassword)
+      System.setProperty("https.proxyPassword", proxyPassword)
+    }
+    if (proxyUser != "" && proxyPassword != "") {
+      Authenticator.setDefault(
+         new Authenticator {
+            override def getPasswordAuthentication = new PasswordAuthentication(proxyUser, proxyPassword.toCharArray())
+         }
+      )
+    }
     for (s <- args) {
       strippedArgs.add(new PyString(s))
     }
@@ -140,34 +155,54 @@ object SauceConnect {
     options.addOption("h", "help", false, "Display this help text.")
     options.addOption("v", "version", false, "Print the version and exit.")
     options.addOption("d", "debug", false, "Enable verbose debugging.")
+
     val logfileOpt = new Option("l", "logfile", true, null)
     logfileOpt.setArgName("LOGFILE")
     options.addOption(logfileOpt)
+
     val proxyOpt = new Option("p", "proxy", true, "Proxy host and port that Sauce Connect should use to send connections from browsers" +
                                                   " in the Sauce Labs cloud to be able to access the AUT.")
     proxyOpt.setArgName("PROXYHOST:PROXYPORT")
     options.addOption(proxyOpt)
+
+    val proxyAuthOpt = new Option("u", "proxy-user", true, "Username required to access proxy host")
+    proxyAuthOpt.setArgName("PROXYUSER")
+    options.addOption(proxyAuthOpt)
+
+    val proxyPassOpt = new Option("X", "proxy-password", true, "Password required to access proxy host")
+    proxyPassOpt.setArgName("PROXYPASS")
+    options.addOption(proxyPassOpt)
+
     val sePortOpt = new Option("P", "se-port", true, "Port in which Sauce Connect's Selenium relay will listen for requests." +
                                                      " Selenium commands reaching Connect on this port will be relayed to Sauce Labs" +
                                                      " securely and reliably through Connect's tunnel.")
     sePortOpt.setArgName("PORT")
     options.addOption(sePortOpt)
+
     val fastFail = new Option("F", "fast-fail-regexps", true, "Comma-separated list of regular expressions." +
                                                               " Requests matching one of these will get dropped instantly and will not" +
                                                               " go through the tunnel.")
     fastFail.setArgName("REGEXP1,REGEXP2")
     options.addOption(fastFail)
+
     val directDomains = new Option("D", "direct-domains", true, "Comma-separated list of domains." +
                                                             " Requests whose host matches one of these will be relayed directly through" +
                                                             " the internet, instead of through the tunnel.")
     directDomains.setArgName("DOMAIN1,DOMAIN2")
     options.addOption(directDomains)
+
     val sharedTunnel = new Option("s", "shared-tunnel", false, "Let sub-accounts of the tunnel owner use the tunnel if requested.")
     options.addOption(sharedTunnel)
+
     val tunnelIdentifier = new Option("i", "tunnel-identifier", true, "Don't automatically assign jobs to this tunnel. Jobs will use it only" +
                                                                       " by explicitly providing the right identifier.")
     tunnelIdentifier.setArgName("TUNNELIDENTIFIER")
     options.addOption(tunnelIdentifier)
+
+    val vmVersion = new Option("V", "vm-version", true, "Request a special VM version to be booted for the Sauce Labs end of the tunnel.")
+    vmVersion.setArgName("VMVERSION")
+    options.addOption(vmVersion)
+
     val squidOpts = new Option("S", "squid-opts", true, "Configuration used for the Squid reverse proxy in our end." +
                                                         " Use only if directed to do so by Sauce Labs support.")
     squidOpts.setArgName("SQUID-OPTIONS")
@@ -212,6 +247,8 @@ object SauceConnect {
       if (proxyString != "") {
         proxyConf = proxyString.split(":")
       }
+      proxyUser = commandLineArguments.getOptionValue("proxy-user", "")
+      proxyPassword = commandLineArguments.getOptionValue("proxy-password", "")
     } catch {
       case e:ParseException => {
         System.err.println(e.getMessage)
@@ -294,6 +331,10 @@ object SauceConnect {
       if (options.hasOption('i')) {
         args.add(new PyString("--tunnel-identifier"))
         args.add(new PyString(options.getOptionValue('i')))
+      }
+      if (options.hasOption('V')) {
+        args.add(new PyString("--vm-version"))
+        args.add(new PyString(options.getOptionValue('V')))
       }
       args.add(new PyString("--squid-opts"))
       if (options.hasOption('S')) {
