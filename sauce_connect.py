@@ -514,6 +514,8 @@ def get_options(arglist=sys.argv[1:]):
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--direct-domains", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--no-ssl-bump-domains", default="", type="str",
+                  help=optparse.SUPPRESS_HELP)
     og.add_option("--shared-tunnel", default=False, action="store_true",
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--tunnel-identifier", default="", type="str",
