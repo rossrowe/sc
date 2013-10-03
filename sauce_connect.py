@@ -102,7 +102,7 @@ class TunnelMachine(object):
 
     def __init__(self, rest_url, user, password,
                  domains, ssh_port, boost_mode, use_ssh,
-                 fast_fail_regexps, direct_domains, shared_tunnel,
+                 fast_fail_regexps, direct_domains, no_ssl_bump_domains, shared_tunnel,
                  tunnel_identifier, vm_version, squid_opts, metadata=None):
         self.user = user
         self.password = password
@@ -112,6 +112,7 @@ class TunnelMachine(object):
         self.use_ssh = use_ssh
         self.fast_fail_regexps = fast_fail_regexps
         self.direct_domains = direct_domains
+        self.no_ssl_bump_domains = no_ssl_bump_domains
         self.shared_tunnel = shared_tunnel
         self.tunnel_identifier = tunnel_identifier
         self.vm_version = vm_version
@@ -235,6 +236,8 @@ class TunnelMachine(object):
                                                   if self.fast_fail_regexps else None),
                                direct_domains=(self.direct_domains.split(',')
                                                if self.direct_domains else None),
+                               no_ssl_bump_domains=(self.no_ssl_bump_domains.split(',')
+                                               if self.no_ssl_bump_domains else None),
                                shared_tunnel=self.shared_tunnel,
                                tunnel_identifier=self.tunnel_identifier,
                                vm_version=self.vm_version,
@@ -511,6 +514,8 @@ def get_options(arglist=sys.argv[1:]):
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--direct-domains", default="", type="str",
                   help=optparse.SUPPRESS_HELP)
+    og.add_option("--no-ssl-bump-domains", default="", type="str",
+                  help=optparse.SUPPRESS_HELP)
     og.add_option("--shared-tunnel", default=False, action="store_true",
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--tunnel-identifier", default="", type="str",
@@ -598,6 +603,7 @@ def run(options,
                                    bool(options.ssh),
                                    options.fast_fail_regexps,
                                    options.direct_domains,
+                                   options.no_ssl_bump_domains,
                                    options.shared_tunnel,
                                    options.tunnel_identifier,
                                    options.vm_version,

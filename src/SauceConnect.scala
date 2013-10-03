@@ -191,6 +191,11 @@ object SauceConnect {
     directDomains.setArgName("DOMAIN1,DOMAIN2")
     options.addOption(directDomains)
 
+    val noSSLBumpDomains = new Option("B", "no-ssl-bump-domains", true, "Comma-separated list of domains." +
+                                                            " Requests whose host matches one of these will not be SSL re-encrypted")
+    noSSLBumpDomains.setArgName("DOMAIN1,DOMAIN2")
+    options.addOption(noSSLBumpDomains)
+
     val sharedTunnel = new Option("s", "shared-tunnel", false, "Let sub-accounts of the tunnel owner use the tunnel if requested.")
     options.addOption(sharedTunnel)
 
@@ -324,6 +329,10 @@ object SauceConnect {
       if (options.hasOption('D')) {
         args.add(new PyString("--direct-domains"))
         args.add(new PyString(options.getOptionValue('D')))
+      }
+      if (options.hasOption('B')) {
+        args.add(new PyString("--no-ssl-bump-domains"))
+        args.add(new PyString(options.getOptionValue('B')))
       }
       if (options.hasOption('s')) {
         args.add(new PyString("--shared-tunnel"))
