@@ -415,7 +415,12 @@ object SauceConnect {
 
   def startProxy() {
     try {
-      sauceProxy = new SauceProxy(0, "", 0, commandLineArguments.getOptionValues("no-ssl-bump-domains"))
+      val noSSLBumpDomains = commandLineArguments.getOptionValue("no-ssl-bump-domains")
+      var array = Array[String]()
+      if (noSSLBumpDomains != null && !noSSLBumpDomains.eq("")) {
+         array = noSSLBumpDomains.split(",")
+      }
+      sauceProxy = new SauceProxy(0, "", 0, array)
       sauceProxy.start()
       SauceConnect.interpreter.exec("options.ports = ['" + sauceProxy.getPort + "']")
     } catch {
