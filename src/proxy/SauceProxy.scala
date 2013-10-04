@@ -21,7 +21,7 @@ import org.eclipse.jetty.server.handler.ConnectHandler
 import org.eclipse.jetty.server.nio.SelectChannelConnector
 import org.eclipse.jetty.util.thread.QueuedThreadPool
 
-class SauceProxy(port: Int, val targetHost: String, val targetPort: Int) {
+class SauceProxy(port: Int, val targetHost: String, val targetPort: Int, directDomains: Array[String]) {
   val server = new Server()
 
   val connector = new SelectChannelConnector()
@@ -34,7 +34,7 @@ class SauceProxy(port: Int, val targetHost: String, val targetPort: Int) {
 
   server.addConnector(connector)
 
-  val handler = new ProxyHandler(this, true)
+  val handler = new ProxyHandler(this, true, directDomains)
   server.setHandler(handler)
 
   // Returns the local port of the first connector for the server.

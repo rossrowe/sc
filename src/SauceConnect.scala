@@ -415,7 +415,7 @@ object SauceConnect {
 
   def startProxy() {
     try {
-      sauceProxy = new SauceProxy(0, "", 0)
+      sauceProxy = new SauceProxy(0, "", 0, commandLineArguments.getOptionValues("no-ssl-bump-domains"))
       sauceProxy.start()
       SauceConnect.interpreter.exec("options.ports = ['" + sauceProxy.getPort + "']")
     } catch {

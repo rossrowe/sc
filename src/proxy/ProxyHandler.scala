@@ -12,13 +12,13 @@ import org.eclipse.jetty.server.ssl.SslSocketConnector
 import org.eclipse.jetty.util.{IO, StringMap}
 
 import org.apache.commons.logging.{Log, LogFactory}
-import javax.net.ssl.{HttpsURLConnection, SSLHandshakeException}
+import javax.net.ssl._
 import javax.servlet.ServletException
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
-import java.io.{File, FileOutputStream, IOException, InputStream}
+import java.io._
 import java.lang.reflect.Field
 import java.net.{HttpURLConnection, URL, URLConnection, MalformedURLException,
-                 UnknownHostException, ConnectException}
+UnknownHostException, ConnectException}
 import java.nio.channels.SocketChannel
 import java.util.{Enumeration, Map}
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap}
@@ -27,6 +27,8 @@ import scala.util.control.Breaks._
 import scala.collection._
 import scala.collection.mutable.LinkedHashMap
 import scala.collection.JavaConversions._
+import java.security.KeyStore
+import java.security.cert.X509Certificate
 
 object Counter {
   var n = 0
@@ -38,10 +40,34 @@ class InsensitiveStringSet extends mutable.HashSet[String] {
   }
 }
 
-class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) extends ConnectHandler {
+
+/**
+ * Custom TrustManager which records the certificate chain prior to checking whether
+ * the server is trusted.  The chain will be used to extract the certificate into a keystore.
+ * @param tm
+ */
+class SavingTrustManager(tm: X509TrustManager) extends X509TrustManager {
+
+  var chain: Array[X509Certificate] = null
+
+  def checkClientTrusted(chainArray: Array[X509Certificate], authType: String) {
+    throw new UnsupportedOperationException()
+  }
+
+  def checkServerTrusted(chainArray: Array[X509Certificate], authType: String) {
+    chain = chainArray
+    tm.checkServerTrusted(chain, authType)
+  }
+
+  def getAcceptedIssuers: Array[X509Certificate] = {
+    throw new UnsupportedOperationException()
+  }
+}
+
+class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean, val directDomains: Array[String]) extends ConnectHandler {
   protected val log = LogFactory.getLog(this.getClass)
 
-  protected def useCyberVillains = true
+  protected def useCyberVillains = false
 
   /** * This lock is very important to ensure that SeleniumServer and
   the underlying Jetty instance * shuts down properly. It ensures that
@@ -81,15 +107,17 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
 
   def formatException(e: Exception): String = {
     return (Array(e.toString) ++
-            e.getStackTrace.map(_.toString)).deep.mkString("\n    at ")
+      e.getStackTrace.map(_.toString)).deep.mkString("\n    at ")
   }
 
-  override def handle(target: String, baseRequest: Request, request: javax.servlet.http.HttpServletRequest, response:javax.servlet.http.HttpServletResponse) {
+  override def handle(target: String, baseRequest: Request, request: javax.servlet.http.HttpServletRequest, response: javax.servlet.http.HttpServletResponse) {
     if (HttpMethods.CONNECT.equalsIgnoreCase(request.getMethod)) {
+      //getRequestURL returns http://twitter.com:433twitter.com, as it appends getRequestURI() to the host and scheme
+      //and getRequestURI() returns twitter.com.
       val host = request.getRequestURL.toString
       val url = baseRequest.getUri.toString
       log.info("CONNECT request for " + host + " url " + url)
-      handleConnect(baseRequest, request, response, host)
+      handleConnect(baseRequest, request, response, url)
       return
     }
     val url = baseRequest.getUri.toString
@@ -112,20 +140,20 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
 
       proxyPlainTextRequest(baseRequest, response)
     } catch {
-      case e @ (_:UnknownHostException | _:ConnectException) => {
+      case e@(_: UnknownHostException | _: ConnectException) => {
         log.warn("Could not proxy " + url + ", exception: " + e)
         if (!response.isCommitted()) {
           response.sendError(400, "Could not proxy " + url + "\n" + e)
         }
       }
-      case e:Exception => {
+      case e: Exception => {
         log.warn("Could not proxy " + url + ", exception: " + e)
         e.printStackTrace()
         if (!response.isCommitted()) {
           response.sendError(400, "Could not proxy " + url + "\n" + e)
         }
         SauceConnect.reportError("Could not proxy " + url + ", exception: " +
-                                 formatException(e))
+          formatException(e))
       }
     }
   }
@@ -163,7 +191,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
    * @param baseRequest   Jetty-specific http request
    * @param request       the http request
    * @param response      the http response
-   * @param serverAddress the remote server address in the form {@code host:port}
+   * @param serverAddress the remote server address in the form { @code host:port}
    * @throws ServletException if an application error occurs
    * @throws IOException      if an I/O error occurs
    */
@@ -278,23 +306,23 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
     //log.warn(sauceProxy + " " + stats)
 
     var url: URL = null
-    var relayed : Boolean = false
+    var relayed: Boolean = false
     if (!sauceProxy.targetHost.isEmpty && sauceProxy.targetPort > 0) {
       url = new URL("http", sauceProxy.targetHost, sauceProxy.targetPort,
-                    request.getUri.toString)
+        request.getUri.toString)
       relayed = true
     } else {
       try {
         url = new URL(request.getUri.toString)
       } catch {
-        case e:MalformedURLException => {
+        case e: MalformedURLException => {
           log.info("relative URL, constructing absolute from Host header")
           val hostport = (request
-                          .getHeaders("Host")
-                          .nextElement
-                          .asInstanceOf[String]
-                          .split(":"))
-            var host = hostport(0)
+            .getHeaders("Host")
+            .nextElement
+            .asInstanceOf[String]
+            .split(":"))
+          var host = hostport(0)
           if (host == "localhost.proxy") {
             host = "localhost"
           }
@@ -307,7 +335,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
         }
       }
     }
-    var prefix : String = ""
+    var prefix: String = ""
     if (relayed) {
       prefix = "Selenium Relay - "
     }
@@ -315,7 +343,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
     log.info(prefix + "Request started: " + request.getMethod + " " + url)
     if (url.toString.contains("squid-cache.org")) {
       SauceConnect.reportError("Proxying suspicious request for " + url + "\n" +
-                               stats)
+        stats)
     }
 
     val connection = url.openConnection()
@@ -406,7 +434,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       // Connect
       connection.connect()
     } catch {
-      case e:Exception => {
+      case e: Exception => {
         //LogSupport.ignore(log, e)
       }
     }
@@ -421,7 +449,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       try {
         code = http.getResponseCode()
       } catch {
-        case e:SSLHandshakeException => {
+        case e: SSLHandshakeException => {
           throw new RuntimeException("Couldn't establish SSL handshake.\n" + e.getLocalizedMessage(), e)
         }
       }
@@ -441,7 +469,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       try {
         proxy_in = connection.getInputStream()
       } catch {
-        case e:Exception => {
+        case e: Exception => {
           //                LogSupport.ignore(log, e)
           proxy_in = http.getErrorStream()
         }
@@ -488,14 +516,14 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       try {
         bytesCopied = IOProxy.proxy(proxy_in, response.getOutputStream())
       } catch {
-        case e:Exception => {
+        case e: Exception => {
           val duration = System.currentTimeMillis - startMs
           log.warn("Exception proxying response after " + duration + "ms, committed? " + response.isCommitted())
           SauceConnect.reportError("Exception proxying response for " + url + "\n" +
-                                   "after " + duration + "ms\n" +
-                                   "message: " + e.getLocalizedMessage + "\n" +
-                                   "exception: " + formatException(e) + "\n" +
-                                   stats)
+            "after " + duration + "ms\n" +
+            "message: " + e.getLocalizedMessage + "\n" +
+            "exception: " + formatException(e) + "\n" +
+            stats)
           log.warn("message for exception: " + e.getLocalizedMessage)
           throw e
         }
@@ -521,15 +549,22 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
         // we do this because the URI above doesn't actually have the host broken up (it returns null on getHost())
 
         connector = new SslRelay(addrPort)
-
-        if (useCyberVillains) {
-          wireUpSslWithCyberVilliansCA(host, connector)
-        } else {
-          wireUpSslWithRemoteService(host, connector)
+        val keystorePassword = "password"
+        if (directDomains != null && !directDomains.isEmpty && directDomains.contains(host)) {
+          //if a no-ssl-bump-domains has been specified, and it matches the current host, then use the certificate
+          //from the host
+          wireUpSslWithHostCertificate(host, addrPort, connector, keystorePassword)
+        }
+        else {
+          if (useCyberVillains) {
+            wireUpSslWithCyberVilliansCA(host, connector)
+          } else {
+            wireUpSslWithRemoteService(host, connector)
+          }
         }
 
-        connector.setPassword("password")
-        connector.setKeyPassword("password")
+        connector.setPassword(keystorePassword)
+        connector.setKeyPassword(keystorePassword)
         server.addConnector(connector)
 
         shutdownLock.synchronized {
@@ -540,7 +575,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
               throw new RuntimeException("Can't start SslRelay: server is not started (perhaps it was just shut down?)")
             }
           } catch {
-            case e:Exception => {
+            case e: Exception => {
               e.printStackTrace()
               throw e
             }
@@ -578,6 +613,59 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
     listener.setNukeDirOrFile(keystore)
   }
 
+  /**
+   * Extracts the certificate from the host, and installs it within a new keystore, which is then added
+   * to the listener.
+   * @param host
+   * @param port
+   * @param listener
+   * @param passphrase
+   */
+  def wireUpSslWithHostCertificate(host: String, port: Int, listener: SslRelay, passphrase: String) = {
+    //create new empty keystore
+    val ks = KeyStore.getInstance(KeyStore.getDefaultType())
+    ks.load(null, passphrase.toCharArray)
+    //connect to server to obtain certificate
+    val context = SSLContext.getInstance("TLS")
+    val tmf =
+      TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm)
+    tmf.init(ks)
+    val defaultTrustManager = tmf.getTrustManagers()
+    val tm = new SavingTrustManager(defaultTrustManager(0).asInstanceOf[X509TrustManager])
+    context.init(null, Array(tm), null)
+    val factory = context.getSocketFactory()
+
+    log.debug("Opening connection to " + host + ":" + port + "...")
+    val socket = factory.createSocket(host, port).asInstanceOf[SSLSocket]
+    socket.setSoTimeout(10000)
+    try {
+      log.debug("Starting SSL handshake...")
+      socket.startHandshake()
+      socket.close()
+      log.debug("No errors, certificate is already trusted")
+    } catch {
+      //this exception is okay, it indicates that the certificate isn't present in the keystore
+      case e: SSLException =>
+        log.debug("Error performing handshake", e)
+    }
+
+    if (tm.chain == null) {
+      log.error("Could not obtain server certificate chain")
+    }
+    //add the certificate to the keystore and save it
+    val cert: X509Certificate = tm.chain(0)
+    val alias: String = host + "-1"
+    ks.setCertificateEntry(alias, cert)
+    val keystore = File.createTempFile("keystore", host + ".jks")
+    val out: OutputStream = new FileOutputStream(keystore)
+    ks.store(out, passphrase.toCharArray)
+    out.close
+    //set the keystore in the listener
+    listener.setKeystore(keystore.getPath)
+    listener.setNukeDirOrFile(keystore.getParentFile)
+
+  }
+
   protected def wireUpSslWithCyberVilliansCA(host: String, listener: SslRelay) = {
     try {
       val root = File.createTempFile("seleniumSslSupport", host)
@@ -594,7 +682,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       listener.setKeystore(new File(root, "cybervillainsCA.jks").getAbsolutePath())
       listener.setNukeDirOrFile(root)
     } catch {
-      case e:Exception => throw new RuntimeException(e)
+      case e: Exception => throw new RuntimeException(e)
     }
   }
 
@@ -620,7 +708,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
         uriField.setAccessible(true)
         //uriField.set(request, new HttpURI("https://" + addr.getHost() + ":" + addr + uri.toString()))
       } catch {
-        case e:Exception => e.printStackTrace()
+        case e: Exception => e.printStackTrace()
       }
     }
 
@@ -636,4 +724,5 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean) ext
       }
     }
   }
+
 }
