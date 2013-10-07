@@ -48,7 +48,7 @@ class InsensitiveStringSet extends mutable.HashSet[String] {
  */
 class SavingTrustManager(tm: X509TrustManager) extends X509TrustManager {
 
-  var chain: Array[X509Certificate] = null
+  var chain: Array[X509Certificate] = Array[X509Certificate]()
 
   def checkClientTrusted(chainArray: Array[X509Certificate], authType: String) {
     throw new UnsupportedOperationException()
@@ -60,7 +60,7 @@ class SavingTrustManager(tm: X509TrustManager) extends X509TrustManager {
   }
 
   def getAcceptedIssuers: Array[X509Certificate] = {
-    throw new UnsupportedOperationException()
+    return chain
   }
 }
 
