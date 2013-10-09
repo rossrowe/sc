@@ -92,6 +92,7 @@ object SauceConnect {
   var commandLineArguments:CommandLine = null
   var standaloneMode:Boolean = true
   var logfile = ""
+  var logfilesize = ""
   var sePort = ""
   var restURL = ""
   var username = ""
@@ -159,6 +160,10 @@ object SauceConnect {
     val logfileOpt = new Option("l", "logfile", true, null)
     logfileOpt.setArgName("LOGFILE")
     options.addOption(logfileOpt)
+    
+    val logfilesizeOpt = new Option("g", "logfilesize", true, null)
+    logfilesizeOpt.setArgName("LOGFILESIZE")
+    options.addOption(logfilesizeOpt)
 
     val proxyOpt = new Option("p", "proxy", true, "Proxy host and port that Sauce Connect should use to send connections from browsers" +
                                                   " in the Sauce Labs cloud to be able to access the AUT.")
@@ -240,6 +245,7 @@ object SauceConnect {
       commandLineArguments = result
 
       logfile = commandLineArguments.getOptionValue("logfile", "sauce_connect.log")
+      logfilesize = commandLineArguments.getOptionValue("logfilesize", "31457280")
       sePort = commandLineArguments.getOptionValue("se-port", "4445")
       restURL = commandLineArguments.getOptionValue("rest-url", "https://saucelabs.com/rest/v1")
       username = commandLineArguments.getArgs()(0)
@@ -313,6 +319,8 @@ object SauceConnect {
     args.add(new PyString(sePort))
     args.add(new PyString("--logfile"))
     args.add(new PyString(logfile))
+    args.add(new PyString("--logfilesize"))
+    args.add(new PyString(logfilesize))
     if (options != null) {
       if (!options.hasOption('i')) {
         args.add(new PyString("-d"))
@@ -415,7 +423,12 @@ object SauceConnect {
 
   def startProxy() {
     try {
-      sauceProxy = new SauceProxy(0, "", 0)
+      val noSSLBumpDomains = commandLineArguments.getOptionValue("no-ssl-bump-domains")
+      var array = Array[String]()
+      if (noSSLBumpDomains != null && !noSSLBumpDomains.eq("")) {
+         array = noSSLBumpDomains.split(",")
+      }
+      sauceProxy = new SauceProxy(0, "", 0, array)
       sauceProxy.start()
       SauceConnect.interpreter.exec("options.ports = ['" + sauceProxy.getPort + "']")
     } catch {
@@ -441,7 +454,7 @@ object SauceConnect {
   }
 
   def setupLogging() {
-    SauceConnect.interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet)")
+    SauceConnect.interpreter.exec("sauce_connect.setup_logging(options.logfile, options.quiet, options.logfilesize)")
     PythonLogHandler.install()
   }
 

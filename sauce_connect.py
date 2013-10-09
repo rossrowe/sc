@@ -3,10 +3,12 @@
 from __future__ import with_statement
 
 import sys
+import os
 import re
 import optparse
 import logging
 import logging.handlers
+import logging.config
 import signal
 import atexit
 import httplib
@@ -442,7 +444,7 @@ def setup_signal_handler(tunnel, options):
         signal.signal(signum, sig_handler)
 
 
-def setup_logging(logfile=None, quiet=False):
+def setup_logging(logfile=None, quiet=False, logfilesize=31457280):
     global fileout
     logger.setLevel(logging.DEBUG)
 
@@ -456,7 +458,7 @@ def setup_logging(logfile=None, quiet=False):
         if not quiet:
             print "* Debug messages will be sent to %s" % logfile
         fileout = logging.handlers.RotatingFileHandler(
-            filename=logfile, maxBytes=128 * 1024, backupCount=8)
+            filename=logfile, maxBytes=logfilesize, backupCount=8)
         fileout.setLevel(logging.DEBUG)
         fileout.setFormatter(logging.Formatter(
             "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"))
@@ -465,6 +467,7 @@ def setup_logging(logfile=None, quiet=False):
 
 def get_options(arglist=sys.argv[1:]):
     logfile = "sauce_connect.log"
+    logfilesize="31457280"
 
     op = optparse.OptionParser(usage="", version="sauce_connect")
     op.add_option("-u", "--user", "--username",
@@ -492,6 +495,8 @@ def get_options(arglist=sys.argv[1:]):
                   " http://site.test:8080/ then set this 8080.")
     og.add_option("--logfile", default=logfile,
                   help="Path of the logfile to write to. [%default]")
+    og.add_option("--logfilesize", default=logfilesize,
+                  help="Size of the logfile to write to. [%default]")
     og.add_option("--readyfile",
                   help="Path of the file to drop when the tunnel is ready "
                        "for tests to run. By default, no file is dropped.")

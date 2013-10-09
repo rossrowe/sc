@@ -271,7 +271,7 @@ class KgpTunnel extends Tunnel {
 
       try {
         sauceProxy = new SauceProxy(se_port.toInt, "localhost",
-                                    proxyServer.getPort)
+                                    proxyServer.getPort, null)
         sauceProxy.start()
       } catch {
         case e:Exception => {
