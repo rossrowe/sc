@@ -598,15 +598,18 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean, val
     val conn = url.openConnection()
     conn.connect()
     val is = conn.getInputStream()
-    val buffer = new Array[Byte](1024)
-    var length = 0
     val fos = new FileOutputStream(keystore)
-    do {
-      length = is.read(buffer)
-      if (length != -1) fos.write(buffer, 0, length)
-    } while (length != -1)
-    fos.close()
-    is.close()
+    try {
+      val buffer = new Array[Byte](1024)
+      var length = 0
+      do {
+        length = is.read(buffer)
+        if (length != -1) fos.write(buffer, 0, length)
+      } while (length != -1)
+    } finally {
+      fos.close()
+      is.close()
+    }
 
     listener.setKeystore(keystore.getAbsolutePath())
     //listener.setKeystore("c:\\" + (_sslMap.size() + 1) + ".keystore")
@@ -622,10 +625,10 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean, val
    * @param passphrase
    */
   def wireUpSslWithHostCertificate(host: String, port: Int, listener: SslRelay, passphrase: String) = {
-    //create new empty keystore
+    // create new empty keystore
     val ks = KeyStore.getInstance(KeyStore.getDefaultType())
     ks.load(null, passphrase.toCharArray)
-    //connect to server to obtain certificate
+    // connect to server to obtain certificate
     val context = SSLContext.getInstance("TLS")
     val tmf =
       TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm)
@@ -643,7 +646,7 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean, val
       socket.startHandshake()
       log.debug("No errors, certificate is already trusted")
     } catch {
-      //this exception is okay, it indicates that the certificate isn't present in the keystore
+      // this exception is okay, it indicates that the certificate isn't present in the keystore
       case e: SSLException =>
         log.debug("Error performing handshake", e)
     } finally {
@@ -653,18 +656,22 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean, val
     if (tm.chain == null) {
       log.error("Could not obtain server certificate chain")
     }
-    //add the certificate to the keystore and save it
-    val cert: X509Certificate = tm.chain(0)
-    val alias: String = host + "-1"
+
+    // add the certificate to the keystore and save it
+    val cert = tm.chain(0)
+    val alias = host + "-1"
     ks.setCertificateEntry(alias, cert)
     val keystore = File.createTempFile("keystore", host + ".jks")
-    val out: OutputStream = new FileOutputStream(keystore)
-    ks.store(out, passphrase.toCharArray)
-    out.close
-    //set the keystore in the listener
+    val out = new FileOutputStream(keystore)
+    try {
+      ks.store(out, passphrase.toCharArray)
+    } finally {
+      out.close()
+    }
+
+    // set the keystore in the listener
     listener.setKeystore(keystore.getPath)
     listener.setNukeDirOrFile(keystore.getParentFile)
-
   }
 
   protected def wireUpSslWithCyberVilliansCA(host: String, listener: SslRelay) = {
