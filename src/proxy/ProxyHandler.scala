@@ -641,12 +641,13 @@ class ProxyHandler(sauceProxy: SauceProxy, trustAllSSLCertificates: Boolean, val
     try {
       log.debug("Starting SSL handshake...")
       socket.startHandshake()
-      socket.close()
       log.debug("No errors, certificate is already trusted")
     } catch {
       //this exception is okay, it indicates that the certificate isn't present in the keystore
       case e: SSLException =>
         log.debug("Error performing handshake", e)
+    } finally {
+      socket.close()
     }
 
     if (tm.chain == null) {
