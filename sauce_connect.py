@@ -507,7 +507,7 @@ def get_options(arglist=sys.argv[1:]):
                   help=optparse.SUPPRESS_HELP)
     og.add_option("--allow-unclean-exit", action="store_true", default=False,
                   help=optparse.SUPPRESS_HELP)
-    og.add_option("--ssh-port", default=22, type="int",
+    og.add_option("--ssh-port", default=443, type="int",
                   help=optparse.SUPPRESS_HELP)
     og.add_option("-b", "--boost-mode", default=False, action="store_true",
                   help=optparse.SUPPRESS_HELP)
