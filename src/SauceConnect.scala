@@ -119,7 +119,7 @@ object SauceConnect {
       System.setProperty("https.proxyHost", proxyConf(0))
       System.setProperty("http.proxyPort", proxyConf(1))
       System.setProperty("https.proxyPort", proxyConf(1))
-      System.setProperty("http.nonProxyHosts", "localhost|saucelabs.com")
+      System.setProperty("http.nonProxyHosts", "localhost")
     }
     if (proxyUser != "") {
       System.setProperty("http.proxyUser", proxyUser)
@@ -160,7 +160,7 @@ object SauceConnect {
     val logfileOpt = new Option("l", "logfile", true, null)
     logfileOpt.setArgName("LOGFILE")
     options.addOption(logfileOpt)
-    
+
     val logfilesizeOpt = new Option("g", "logfilesize", true, null)
     logfilesizeOpt.setArgName("LOGFILESIZE")
     options.addOption(logfilesizeOpt)
