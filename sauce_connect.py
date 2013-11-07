@@ -458,7 +458,7 @@ def setup_logging(logfile=None, quiet=False, logfilesize=31457280):
         if not quiet:
             print "* Debug messages will be sent to %s" % logfile
         fileout = logging.handlers.RotatingFileHandler(
-            filename=logfile, maxBytes=logfilesize, backupCount=8)
+            filename=logfile, maxBytes=int(logfilesize), backupCount=8)
         fileout.setLevel(logging.DEBUG)
         fileout.setFormatter(logging.Formatter(
             "%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s"))
